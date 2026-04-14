@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:8.0
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      - MONGODB_INITDB_DATABASE=platform
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6378:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  mongo-data:
+  redis-data:

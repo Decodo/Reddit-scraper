@@ -1,0 +1,25 @@
+{
+  "name": "platform-boilerplate",
+  "type": "module",
+  "private": true,
+  "packageManager": "bun@1.2.5",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "lint": "bun run --cwd apps/backend lint && bun run --cwd apps/frontend lint",
+    "dev": "bun run --cwd apps/shared build && bunx concurrently \"bun run --cwd apps/backend start:dev\" \"bun run --cwd apps/frontend dev\"",
+    "build": "bun run --cwd apps/shared build && bun run --cwd apps/backend build && bun run --cwd apps/frontend build",
+    "start": "bunx concurrently \"bun run --cwd apps/backend start:prod\" \"bun run --cwd apps/frontend preview\"",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
+    "format": "bun run --cwd apps/backend format"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "concurrently": "^9.1.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
