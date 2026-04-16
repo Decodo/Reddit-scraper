@@ -66,7 +66,9 @@ function TrackerPage() {
     generatePlan.mutate(
       { prompt, ...options },
       {
-        onSuccess: (plan) => setStep({ stage: 'reviewing', plan, prompt }),
+        onSuccess: (plan) => {
+          setStep({ stage: 'reviewing', plan, prompt });
+        },
       },
     );
   };
@@ -78,8 +80,9 @@ function TrackerPage() {
     timeRange: TimeRange;
   }) => {
     analyzePlan.mutate(planInput, {
-      onSuccess: (result) =>
-        setStep({ stage: 'done', result, prompt: planInput.prompt }),
+      onSuccess: (result) => {
+        setStep({ stage: 'done', result, prompt: planInput.prompt });
+      },
     });
   };
 

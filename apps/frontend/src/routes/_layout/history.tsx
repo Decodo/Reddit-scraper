@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, Outlet, useLocation } from '@tanstack/react-router';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,16 @@ const sentimentColor: Record<string, string> = {
 };
 
 function HistoryPage() {
+  const { pathname } = useLocation();
   const { data: queries, isLoading } = useQueriesQuery();
   const deleteMutation = useDeleteQueryMutation();
+
+  // When navigated to a child route (e.g. /history/:id), yield to the child component.
+  // TanStack Router flat-file routing makes history.$id a child of this route,
+  // so this component must render <Outlet /> for the child to appear.
+  if (pathname !== '/history') {
+    return <Outlet />;
+  }
 
   if (isLoading) {
     return (

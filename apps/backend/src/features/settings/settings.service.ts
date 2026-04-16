@@ -35,6 +35,10 @@ export interface UpdateSettingsInput {
 export class SettingsService {
   private readonly logger = new Logger(SettingsService.name);
 
+  private configCache: { value: EffectiveConfig; expiresAt: number } | null = null;
+  private configInFlight: Promise<EffectiveConfig> | null = null;
+  private readonly CONFIG_CACHE_TTL_MS = 10_000; // 10 seconds
+
   constructor(
     @InjectModel(Settings.name)
     private readonly settingsModel: Model<SettingsDocument>,
@@ -42,6 +46,23 @@ export class SettingsService {
   ) {}
 
   async getEffectiveConfig(): Promise<EffectiveConfig> {
+    if (this.configCache && Date.now() < this.configCache.expiresAt) {
+      return this.configCache.value;
+    }
+
+    // Prevent cache stampede: all concurrent callers share a single in-flight fetch
+    if (this.configInFlight) {
+      return this.configInFlight;
+    }
+
+    this.configInFlight = this.fetchConfig().finally(() => {
+      this.configInFlight = null;
+    });
+
+    return this.configInFlight;
+  }
+
+  private async fetchConfig(): Promise<EffectiveConfig> {
     let doc: SettingsDocument | null = null;
     try {
       doc = await this.settingsModel.findOne({ key: 'global' }).exec();
@@ -52,7 +73,7 @@ export class SettingsService {
     const envLlm = this.configService.llm;
     const envDecodo = this.configService.decodo;
 
-    return {
+    const config = {
       provider: doc?.provider || envLlm.provider || 'claude',
       model: doc?.model || envLlm.model || '',
       decodoApiKey: doc?.decodoApiKey || envDecodo.apiKey || '',
@@ -60,6 +81,19 @@ export class SettingsService {
       openaiApiKey: doc?.openaiApiKey || envLlm.openaiApiKey || '',
       geminiApiKey: doc?.geminiApiKey || envLlm.geminiApiKey || '',
     };
+
+    this.logger.log(
+      `[Config] provider=${config.provider} model="${config.model || 'default'}" ` +
+      `decodo=${config.decodoApiKey ? '✓' : '✗'} ` +
+      `anthropic=${config.anthropicApiKey ? '✓' : '✗'} ` +
+      `openai=${config.openaiApiKey ? '✓' : '✗'} ` +
+      `gemini=${config.geminiApiKey ? '✓' : '✗'} ` +
+      `(source: ${doc ? 'DB' : 'env'})`,
+    );
+
+    this.configCache = { value: config, expiresAt: Date.now() + this.CONFIG_CACHE_TTL_MS };
+
+    return config;
   }
 
   async getStatus(): Promise<SettingsStatus> {
@@ -82,10 +116,17 @@ export class SettingsService {
       }
     }
 
-    if (Object.keys(patch).length > 0) {
+    const fields = Object.keys(patch);
+    if (fields.length > 0) {
+      this.logger.log(`[Settings] Updating fields: ${fields.join(', ')}`);
       await this.settingsModel
         .findOneAndUpdate({ key: 'global' }, { $set: patch }, { upsert: true, new: true })
         .exec();
+      this.configCache = null;
+      this.configInFlight = null; // invalidate so next read fetches fresh values
+      this.logger.log(`[Settings] Saved to DB`);
+    } else {
+      this.logger.log(`[Settings] No fields to update (all inputs were empty)`);
     }
 
     return this.getStatus();

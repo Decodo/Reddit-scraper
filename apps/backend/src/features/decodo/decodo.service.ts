@@ -56,12 +56,33 @@ export class DecodoService {
       );
     }
 
-    const data = (await response.json()) as { status: number; content: string };
+    // Decodo v2 response: { results: [{ content, status_code, ... }] }
+    const raw = (await response.json()) as Record<string, unknown>;
+    const results = raw['results'] as Array<{ content: string; status_code: number }> | undefined;
+    const first = results?.[0];
+
+    if (!first) {
+      this.logger.warn(
+        `[Decodo] Unexpected response shape (keys: ${Object.keys(raw).join(', ')}): ` +
+        JSON.stringify(raw).slice(0, 300),
+      );
+      throw new ServiceUnavailableException('Decodo API returned unexpected response structure');
+    }
+
+    const contentType = typeof first.content;
+    const contentPreview =
+      contentType === 'string'
+        ? `${(first.content as string).length} chars`
+        : `[${contentType}] ${JSON.stringify(first.content).slice(0, 120)}`;
+
+    this.logger.log(
+      `[Decodo] ✓ ${request.target} status=${first.status_code} content=${contentPreview}`,
+    );
 
     return {
-      status: data.status,
+      status: first.status_code,
       url: request.url,
-      content: data.content,
+      content: first.content as unknown,
       target: request.target,
     };
   }
@@ -76,7 +97,7 @@ export class DecodoService {
     const url = `https://www.reddit.com/search.json?q=${encodedQuery}&sort=relevance&t=${timeRange}&limit=${limit}`;
 
     const result = await this.scrape({ target: 'universal', url });
-    return this.parsePostListing(result.content, 'universal');
+    return this.parsePostListing(result.content as string | object, 'universal');
   }
 
   // ---------------------------------------------------------------------------
@@ -88,7 +109,7 @@ export class DecodoService {
     const url = `https://www.reddit.com/r/${subreddit}.json?sort=hot&limit=${limit}`;
 
     const result = await this.scrape({ target: 'reddit_subreddit', url });
-    return this.parsePostListing(result.content, 'reddit_subreddit');
+    return this.parsePostListing(result.content as string | object, 'reddit_subreddit');
   }
 
   // ---------------------------------------------------------------------------
@@ -99,26 +120,42 @@ export class DecodoService {
     const { subreddit, postId } = params;
     const url = `https://www.reddit.com/r/${subreddit}/comments/${postId}.json`;
 
-    const result = await this.scrape({ target: 'reddit_post', url });
-    return this.parsePostWithComments(result.content);
+    // Use universal target: reddit_post returns 404 for .json URLs;
+    // universal fetches the raw JSON string which our parser already handles correctly.
+    const result = await this.scrape({ target: 'universal', url });
+
+    if (result.status !== 200) {
+      this.logger.warn(`[scrapePost] Skipping post ${postId} — status ${result.status}`);
+      return { id: postId, title: '', subreddit, author: '', upvotes: 0, commentCount: 0, url, permalink: '', selftext: '', createdAt: 0, comments: [] };
+    }
+
+    return this.parsePostWithComments(result.content as string | object);
   }
 
   // ---------------------------------------------------------------------------
   // Parsers
   // ---------------------------------------------------------------------------
 
+  private parseContent<T>(content: string | object): T {
+    if (typeof content === 'string') {
+      return JSON.parse(content) as T;
+    }
+    return content as T;
+  }
+
   private parsePostListing(
-    content: string,
+    content: string | object,
     _target: DecodoTarget,
   ): RedditPost[] {
     try {
-      const json = JSON.parse(content) as {
+      const json = this.parseContent<{
         data?: {
           children?: Array<{ data: Record<string, unknown> }>;
         };
-      };
+      }>(content);
 
       const children = json?.data?.children ?? [];
+      this.logger.log(`[Parser] parsePostListing found ${children.length} children`);
       return children.map((child) => this.mapPost(child.data));
     } catch (err) {
       this.logger.warn(`Failed to parse post listing: ${String(err)}`);
@@ -126,11 +163,11 @@ export class DecodoService {
     }
   }
 
-  private parsePostWithComments(content: string): RedditPostWithComments {
+  private parsePostWithComments(content: string | object): RedditPostWithComments {
     try {
-      const json = JSON.parse(content) as Array<{
+      const json = this.parseContent<Array<{
         data?: { children?: Array<{ data: Record<string, unknown> }> };
-      }>;
+      }>>(content);
 
       const [postListing, commentListing] = json;
       const postData = postListing?.data?.children?.[0]?.data ?? {};

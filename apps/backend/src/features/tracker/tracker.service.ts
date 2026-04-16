@@ -13,6 +13,7 @@ import type { AnalyzePlanDto } from './dto/analyze-plan.dto';
 
 const MAX_POSTS_TOTAL = 30;
 const MAX_POSTS_DEEP_DIVE = 8;
+const SCRAPE_CONCURRENCY = 4; // max simultaneous Decodo requests to avoid 429s
 
 @Injectable()
 export class TrackerService {
@@ -29,7 +30,8 @@ export class TrackerService {
   // ---------------------------------------------------------------------------
 
   async generatePlan(dto: GeneratePlanDto): Promise<ScrapingPlan> {
-    this.logger.log(`Generating scraping plan for: "${dto.prompt}"`);
+    this.logger.log(`[Plan] ▶ Generating plan for: "${dto.prompt}"`);
+    const t0 = Date.now();
 
     const userMessage = [
       `User prompt: "${dto.prompt}"`,
@@ -66,6 +68,14 @@ export class TrackerService {
       plan.timeRange = dto.timeRange;
     }
 
+    this.logger.log(
+      `[Plan] ✓ Done in ${Date.now() - t0}ms — ` +
+      `subreddits: [${plan.subreddits.join(', ')}] ` +
+      `queries: ${plan.queries.length} ` +
+      `timeRange: ${plan.timeRange}`,
+    );
+    this.logger.log(`[Plan] Rationale: ${plan.rationale}`);
+
     return plan;
   }
 
@@ -74,26 +84,42 @@ export class TrackerService {
   // ---------------------------------------------------------------------------
 
   async analyzePlan(dto: AnalyzePlanDto): Promise<{
+    id: string;
     plan: AnalyzePlanDto;
     posts: RedditPost[];
     report: RedditReport;
   }> {
+    const tTotal = Date.now();
     this.logger.log(
-      `Analyzing plan — ${dto.subreddits.length} subreddits, ${dto.queries.length} queries`,
+      `[Analyze] ▶ Starting — subreddits: [${dto.subreddits.join(', ')}] | queries: [${dto.queries.join(', ')}] | timeRange: ${dto.timeRange}`,
     );
 
-    // Step 1: parallel scraping
-    const posts = await this.scrapeAll(dto);
+    // Step 1: parallel scraping (concurrency-capped)
+    this.logger.log(`[Analyze] Step 1/4 — Scraping (${dto.queries.length} searches + ${dto.subreddits.length} subreddit feeds, max ${SCRAPE_CONCURRENCY} concurrent)...`);
+    const t1 = Date.now();
+    const { posts, searchPostIds } = await this.scrapeAll(dto);
+    this.logger.log(`[Analyze] Step 1/4 ✓ — ${posts.length} posts collected in ${Date.now() - t1}ms`);
 
-    // Step 2: deep-dive comment threads for top posts
-    const postsWithComments = await this.deepDive(
-      posts.slice(0, MAX_POSTS_DEEP_DIVE),
-    );
+    // Step 2: deep-dive comment threads — prefer search results (topically relevant)
+    // over subreddit hot posts (high upvotes but often off-topic)
+    const searchPosts = posts.filter((p) => searchPostIds.has(p.id));
+    const deepDiveCandidates = searchPosts.length > 0 ? searchPosts : posts;
+    const deepDivePosts = deepDiveCandidates.slice(0, MAX_POSTS_DEEP_DIVE);
+    this.logger.log(`[Analyze] Step 2/4 — Deep-diving ${deepDivePosts.length} top posts for comments...`);
+    const t2 = Date.now();
+    const postsWithComments = await this.deepDive(deepDivePosts);
+    const totalComments = postsWithComments.reduce((n, p) => n + p.comments.length, 0);
+    this.logger.log(`[Analyze] Step 2/4 ✓ — ${totalComments} comments fetched in ${Date.now() - t2}ms`);
 
     // Step 3: LLM summarization
+    this.logger.log(`[Analyze] Step 3/4 — Sending ${posts.length} posts to LLM for summarization...`);
+    const t3 = Date.now();
     const report = await this.summarize(dto.prompt, posts, postsWithComments);
+    this.logger.log(`[Analyze] Step 3/4 ✓ — Report generated in ${Date.now() - t3}ms`);
+    this.logger.log(`[Analyze] Report sentiment: ${report.sentiment.overall} | themes: ${report.themes.map((t) => t.title).join(', ')}`);
 
     // Step 4: persist to query history
+    this.logger.log(`[Analyze] Step 4/4 — Persisting to MongoDB...`);
     const saved = await this.queriesService.create({
       prompt: dto.prompt,
       plan: {
@@ -105,6 +131,9 @@ export class TrackerService {
       posts,
       report,
     });
+    this.logger.log(`[Analyze] Step 4/4 ✓ — Saved as query ID: ${String(saved._id)}`);
+
+    this.logger.log(`[Analyze] ✓ Complete in ${Date.now() - tTotal}ms`);
 
     return { id: String(saved._id), plan: dto, posts, report };
   }
@@ -113,37 +142,71 @@ export class TrackerService {
   // Internals
   // ---------------------------------------------------------------------------
 
-  private async scrapeAll(dto: AnalyzePlanDto): Promise<RedditPost[]> {
-    const tasks: Promise<RedditPost[]>[] = [];
-
-    // Global search queries via universal target
-    for (const query of dto.queries) {
-      tasks.push(
+  private async scrapeAll(dto: AnalyzePlanDto): Promise<{
+    posts: RedditPost[];
+    searchPostIds: Set<string>;
+  }> {
+    const searchTasks: (() => Promise<RedditPost[]>)[] = dto.queries.map(
+      (query) => () =>
         this.decodoService
           .searchReddit({ query, timeRange: dto.timeRange })
           .catch((err) => {
             this.logger.warn(`Search query failed for "${query}": ${String(err)}`);
-            return [];
+            return [] as RedditPost[];
           }),
-      );
-    }
+    );
 
-    // Subreddit feeds via reddit_subreddit target
-    for (const subreddit of dto.subreddits) {
-      tasks.push(
+    const subredditTasks: (() => Promise<RedditPost[]>)[] = dto.subreddits.map(
+      (subreddit) => () =>
         this.decodoService
           .scrapeSubreddit({ subreddit })
           .catch((err) => {
             this.logger.warn(`Subreddit scrape failed for r/${subreddit}: ${String(err)}`);
-            return [];
+            return [] as RedditPost[];
           }),
-      );
-    }
+    );
 
-    const results = await Promise.all(tasks);
-    const all = results.flat();
+    const allTasks = [...searchTasks, ...subredditTasks];
+    const results = await TrackerService.runWithConcurrency(allTasks, SCRAPE_CONCURRENCY);
 
-    return this.deduplicateAndRank(all).slice(0, MAX_POSTS_TOTAL);
+    const searchResults = results.slice(0, searchTasks.length).flat();
+    const subredditResults = results.slice(searchTasks.length).flat();
+
+    // IDs of search-result posts — used to prioritize deep-dive selection
+    const searchPostIds = new Set(searchResults.map((p) => p.id).filter(Boolean));
+
+    const all = [...searchResults, ...subredditResults];
+    const ranked = this.deduplicateAndRank(all).slice(0, MAX_POSTS_TOTAL);
+
+    this.logger.log(
+      `[Scrape] Search: ${searchResults.length} | Subreddits: ${subredditResults.length}` +
+      ` → dedup+rank: ${ranked.length} (top: "${ranked[0]?.title?.slice(0, 60) ?? 'none'}")`,
+    );
+
+    return { posts: ranked, searchPostIds };
+  }
+
+  // Runs tasks with at most `concurrency` in-flight at a time to avoid 429s
+  private static async runWithConcurrency<T>(
+    tasks: (() => Promise<T>)[],
+    concurrency: number,
+  ): Promise<T[]> {
+    const results: T[] = new Array(tasks.length) as T[];
+    let next = 0;
+
+    const worker = async (): Promise<void> => {
+      while (next < tasks.length) {
+        const i = next++;
+        results[i] = await tasks[i]();
+      }
+    };
+
+    const workers = Array.from(
+      { length: Math.min(concurrency, tasks.length) },
+      () => worker(),
+    );
+    await Promise.all(workers);
+    return results;
   }
 
   private async deepDive(

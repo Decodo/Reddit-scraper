@@ -9,7 +9,7 @@ export interface DecodoScrapeRequest {
 export interface DecodoScrapeResponse {
   status: number;
   url: string;
-  content: string;
+  content: unknown;
   target: DecodoTarget;
 }
 
