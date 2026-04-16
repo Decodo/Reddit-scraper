@@ -38,4 +38,21 @@ export class ConfigService {
       db: parseInt(this.configService.get<string>("REDIS_DB", "0"), 10),
     };
   }
+
+  get decodo() {
+    return {
+      apiKey: this.configService.get<string>("DECODO_API_KEY", ""),
+      baseUrl: "https://scraper-api.decodo.com/v2",
+    };
+  }
+
+  get llm() {
+    return {
+      provider: this.configService.get<string>("LLM_PROVIDER", "claude"),
+      model: this.configService.get<string>("LLM_MODEL", ""),
+      anthropicApiKey: this.configService.get<string>("ANTHROPIC_API_KEY", ""),
+      openaiApiKey: this.configService.get<string>("OPENAI_API_KEY", ""),
+      geminiApiKey: this.configService.get<string>("GEMINI_API_KEY", ""),
+    };
+  }
 }

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService, DatabaseModule } from './shared';
 import { ItemsModule } from './features/items/items.module';
+import { QueriesModule } from './features/queries/queries.module';
+import { TrackerModule } from './features/tracker/tracker.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { ItemsModule } from './features/items/items.module';
     }),
     // Add feature modules here
     ItemsModule,
+    QueriesModule,
+    TrackerModule,
   ],
 })
 export class AppModule {}
