@@ -26,7 +26,7 @@ An open-source Reddit intelligence tool powered by the [Decodo Scraping API](htt
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/oxylabs/decodo-reddit-tracker
+git clone https://github.com/decodo/decodo-reddit-tracker
 cd decodo-reddit-tracker
 bun install
 
