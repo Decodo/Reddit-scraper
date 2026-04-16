@@ -4,7 +4,7 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '../../shared/config/config.service';
+import { SettingsService } from '../settings/settings.service';
 import type {
   DecodoScrapeRequest,
   DecodoScrapeResponse,
@@ -21,26 +21,27 @@ import type {
 export class DecodoService {
   private readonly logger = new Logger(DecodoService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly settingsService: SettingsService) {}
 
   // ---------------------------------------------------------------------------
   // Core Decodo API call
   // ---------------------------------------------------------------------------
 
   async scrape(request: DecodoScrapeRequest): Promise<DecodoScrapeResponse> {
-    const { apiKey, baseUrl } = this.configService.decodo;
+    const config = await this.settingsService.getEffectiveConfig();
+    const { decodoApiKey } = config;
 
-    if (!apiKey) {
+    if (!decodoApiKey) {
       throw new BadRequestException('DECODO_API_KEY is not configured');
     }
 
     this.logger.log(`Scraping [${request.target}] ${request.url}`);
 
-    const response = await fetch(`${baseUrl}/scrape`, {
+    const response = await fetch('https://scraper-api.decodo.com/v2/scrape', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${apiKey}`,
+        Authorization: `Basic ${decodoApiKey}`,
       },
       body: JSON.stringify({
         target: request.target,
@@ -75,7 +76,6 @@ export class DecodoService {
     const url = `https://www.reddit.com/search.json?q=${encodedQuery}&sort=relevance&t=${timeRange}&limit=${limit}`;
 
     const result = await this.scrape({ target: 'universal', url });
-
     return this.parsePostListing(result.content, 'universal');
   }
 
@@ -88,7 +88,6 @@ export class DecodoService {
     const url = `https://www.reddit.com/r/${subreddit}.json?sort=hot&limit=${limit}`;
 
     const result = await this.scrape({ target: 'reddit_subreddit', url });
-
     return this.parsePostListing(result.content, 'reddit_subreddit');
   }
 
@@ -101,7 +100,6 @@ export class DecodoService {
     const url = `https://www.reddit.com/r/${subreddit}/comments/${postId}.json`;
 
     const result = await this.scrape({ target: 'reddit_post', url });
-
     return this.parsePostWithComments(result.content);
   }
 
@@ -121,7 +119,6 @@ export class DecodoService {
       };
 
       const children = json?.data?.children ?? [];
-
       return children.map((child) => this.mapPost(child.data));
     } catch (err) {
       this.logger.warn(`Failed to parse post listing: ${String(err)}`);

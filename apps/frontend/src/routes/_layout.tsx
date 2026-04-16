@@ -21,7 +21,7 @@ import {
   BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import { Toaster } from "@/components/ui/toaster";
-import { LayoutDashboard, Package } from "lucide-react";
+import { History, Search, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_layout")({
@@ -42,27 +42,31 @@ type NavSection = {
 
 const navigationSections: NavSection[] = [
   {
-    title: "Home",
+    title: "Reddit Intelligence",
     items: [
       {
-        title: "Dashboard",
-        url: "/dashboard",
-        icon: LayoutDashboard,
+        title: "Tracker",
+        url: "/tracker",
+        icon: Search,
         matchExact: true,
+      },
+      {
+        title: "History",
+        url: "/history",
+        icon: History,
       },
     ],
   },
   {
-    title: "Manage",
+    title: "Configuration",
     items: [
       {
-        title: "Items",
-        url: "/items",
-        icon: Package,
+        title: "Settings",
+        url: "/settings",
+        icon: Settings,
       },
     ],
   },
-  // Add more sections here
 ];
 
 const AppSidebar = () => {
@@ -81,11 +85,11 @@ const AppSidebar = () => {
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Package className="h-4 w-4" />
+            <Search className="h-4 w-4" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">Platform</span>
-            <span className="text-xs text-muted-foreground">Dashboard</span>
+            <span className="text-sm font-semibold">Reddit Tracker</span>
+            <span className="text-xs text-muted-foreground">by Decodo</span>
           </div>
         </div>
       </SidebarHeader>

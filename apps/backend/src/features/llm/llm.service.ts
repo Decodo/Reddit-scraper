@@ -2,7 +2,8 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
-import { ConfigService } from '../../shared/config/config.service';
+import { SettingsService } from '../settings/settings.service';
+import type { EffectiveConfig } from '../settings/settings.service';
 import { LLM_DEFAULTS } from './llm.constants';
 import type { LlmProvider, LlmRequest, LlmResponse } from './llm.types';
 
@@ -10,20 +11,19 @@ import type { LlmProvider, LlmRequest, LlmResponse } from './llm.types';
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly settingsService: SettingsService) {}
 
   async complete(request: LlmRequest): Promise<LlmResponse> {
-    const { provider: overrideProvider, model: overrideModel } = request;
-    const config = this.configService.llm;
-    const provider = (overrideProvider ?? config.provider) as LlmProvider;
+    const config = await this.settingsService.getEffectiveConfig();
+    const provider = (request.provider ?? config.provider) as LlmProvider;
 
     switch (provider) {
       case 'claude':
-        return this.completeClaude(request, overrideModel);
+        return this.completeClaude(request, config);
       case 'openai':
-        return this.completeOpenAi(request, overrideModel);
+        return this.completeOpenAi(request, config);
       case 'gemini':
-        return this.completeGemini(request, overrideModel);
+        return this.completeGemini(request, config);
       default:
         throw new BadRequestException(`Unknown LLM provider: ${provider}`);
     }
@@ -31,20 +31,16 @@ export class LlmService {
 
   private async completeClaude(
     request: LlmRequest,
-    modelOverride?: string,
+    config: EffectiveConfig,
   ): Promise<LlmResponse> {
-    const config = this.configService.llm;
-    const apiKey = config.anthropicApiKey;
-
-    if (!apiKey) {
+    if (!config.anthropicApiKey) {
       throw new BadRequestException('ANTHROPIC_API_KEY is not configured');
     }
 
     const model =
-      (modelOverride ?? config.model) || LLM_DEFAULTS.claude.model;
+      (request.model ?? config.model) || LLM_DEFAULTS.claude.model;
 
-    const client = new Anthropic({ apiKey });
-
+    const client = new Anthropic({ apiKey: config.anthropicApiKey });
     this.logger.log(`Calling Claude model: ${model}`);
 
     const response = await client.messages.create({
@@ -64,20 +60,16 @@ export class LlmService {
 
   private async completeOpenAi(
     request: LlmRequest,
-    modelOverride?: string,
+    config: EffectiveConfig,
   ): Promise<LlmResponse> {
-    const config = this.configService.llm;
-    const apiKey = config.openaiApiKey;
-
-    if (!apiKey) {
+    if (!config.openaiApiKey) {
       throw new BadRequestException('OPENAI_API_KEY is not configured');
     }
 
     const model =
-      (modelOverride ?? config.model) || LLM_DEFAULTS.openai.model;
+      (request.model ?? config.model) || LLM_DEFAULTS.openai.model;
 
-    const client = new OpenAI({ apiKey });
-
+    const client = new OpenAI({ apiKey: config.openaiApiKey });
     this.logger.log(`Calling OpenAI model: ${model}`);
 
     const response = await client.chat.completions.create({
@@ -92,26 +84,21 @@ export class LlmService {
     });
 
     const content = response.choices[0]?.message?.content ?? '';
-
     return { content, provider: 'openai', model };
   }
 
   private async completeGemini(
     request: LlmRequest,
-    modelOverride?: string,
+    config: EffectiveConfig,
   ): Promise<LlmResponse> {
-    const config = this.configService.llm;
-    const apiKey = config.geminiApiKey;
-
-    if (!apiKey) {
+    if (!config.geminiApiKey) {
       throw new BadRequestException('GEMINI_API_KEY is not configured');
     }
 
     const model =
-      (modelOverride ?? config.model) || LLM_DEFAULTS.gemini.model;
+      (request.model ?? config.model) || LLM_DEFAULTS.gemini.model;
 
-    const client = new GoogleGenAI({ apiKey });
-
+    const client = new GoogleGenAI({ apiKey: config.geminiApiKey });
     this.logger.log(`Calling Gemini model: ${model}`);
 
     const contents = request.messages.map((m) => ({
@@ -119,13 +106,8 @@ export class LlmService {
       parts: [{ text: m.content }],
     }));
 
-    const response = await client.models.generateContent({
-      model,
-      contents,
-    });
-
+    const response = await client.models.generateContent({ model, contents });
     const content = response.text ?? '';
-
     return { content, provider: 'gemini', model };
   }
 

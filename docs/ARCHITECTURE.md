@@ -2,54 +2,112 @@
 
 ## Overview
 
-This platform is a monorepo containing a React frontend, NestJS backend, and a shared TypeScript package.
+Decodo Reddit Tracker is a monorepo with a React frontend, NestJS backend, and shared TypeScript package.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    Browser                          │
-│              React App (port 5274)                  │
-└──────────────────────┬──────────────────────────────┘
-                       │ HTTP /api/*
-┌──────────────────────▼──────────────────────────────┐
-│              NestJS Backend (port 5002)             │
-│                                                     │
-│  ┌─────────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │  Features   │  │ Shared   │  │  Config       │  │
-│  │  (items,    │  │ (DB,     │  │  Service      │  │
-│  │   ...)      │  │  Redis)  │  │               │  │
-│  └─────────────┘  └──────────┘  └───────────────┘  │
-└──────────────────────┬──────────────────────────────┘
-                       │
-        ┌──────────────┴──────────────┐
-        │                             │
-┌───────▼───────┐           ┌─────────▼─────────┐
-│   MongoDB     │           │      Redis          │
-│  (port 27018) │           │   (port 6378)       │
-└───────────────┘           └─────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                     Browser (port 5274)                  │
+│   TanStack Router · TanStack Query · Tailwind v4         │
+└─────────────────────────┬────────────────────────────────┘
+                          │ HTTP /api/*  (proxied by Rsbuild in dev)
+┌─────────────────────────▼────────────────────────────────┐
+│                 NestJS Backend (port 5002)                │
+│                                                          │
+│  ┌──────────┐  ┌────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ tracker  │  │ decodo │  │   llm    │  │ queries  │  │
+│  │ (plan +  │  │ (scrape│  │ (Claude/ │  │ (history │  │
+│  │  analyze)│  │  API)  │  │  OpenAI/ │  │  CRUD)   │  │
+│  └────┬─────┘  └───┬────┘  │  Gemini) │  └──────────┘  │
+│       │             │       └──────────┘                 │
+│       └─────────────┴─────────────────────────────────── │
+│                         settings (runtime config)        │
+└──────────────────────────────┬───────────────────────────┘
+                               │
+              ┌────────────────┴───────────────┐
+              │                                │
+  ┌───────────▼───────────┐       ┌────────────▼──────────┐
+  │   MongoDB (port 27018) │       │   Redis (port 6378)    │
+  │   queries, settings    │       │   BullMQ queue         │
+  └───────────────────────┘       └───────────────────────┘
 ```
+
+External APIs:
+- **Decodo Scraping API** — `https://scraper-api.decodo.com/v2/scrape`
+- **Anthropic API** — default LLM provider
+- **OpenAI API** — optional LLM provider
+- **Google Gemini API** — optional LLM provider
+
+---
+
+## Request Flow
+
+### POST /tracker/plan
+1. `TrackerController` receives `{ prompt, subreddits?, timeRange? }`
+2. `TrackerService.generatePlan()` calls `LlmService.complete()` with `SCRAPING_PLAN_PROMPT`
+3. `LlmService` reads effective config from `SettingsService` (DB overrides .env)
+4. LLM returns JSON: `{ subreddits[], queries[], timeRange, rationale }`
+5. Response returned to frontend for user review
+
+### POST /tracker/analyze
+1. `TrackerController` receives confirmed plan `{ prompt, subreddits[], queries[], timeRange }`
+2. `TrackerService.analyzePlan()`:
+   a. **Parallel scraping** — global search queries via `universal` target + subreddit feeds via `reddit_subreddit` target (all concurrent)
+   b. **Dedup & rank** — merge results, remove duplicates, sort by upvotes, cap at 30
+   c. **Deep dive** — fetch full comment threads for top 8 posts via `reddit_post` target (concurrent)
+   d. **LLM summarization** — send all content to LLM with `SUMMARIZATION_PROMPT`
+   e. **Persist** — save full result to MongoDB via `QueriesService`
+3. Response: `{ id, plan, posts[], report }`
+
+---
+
+## Feature Modules
+
+### `tracker`
+Orchestrates the full pipeline. No database access — delegates to `DecodoService`, `LlmService`, and `QueriesService`.
+
+### `decodo`
+Wraps the Decodo Scraping API. Provides three typed methods:
+- `searchReddit(params)` — `universal` target, Reddit search JSON endpoint
+- `scrapeSubreddit(params)` — `reddit_subreddit` target, subreddit hot feed
+- `scrapePost(params)` — `reddit_post` target, full comment thread
+
+Parses the JSON response from Reddit's `.json` endpoints into typed `RedditPost` / `RedditPostWithComments` objects.
+
+### `llm`
+Thin abstraction over three providers. Provider and model are resolved from `SettingsService.getEffectiveConfig()` on each call (DB settings override .env fallback). Supports `responseFormat: 'json'` hint (activates OpenAI's JSON mode; Claude/Gemini rely on prompt engineering).
+
+### `queries`
+MongoDB CRUD for query history. `findAll()` excludes raw `posts` field to keep list responses lightweight. Full posts are available via `findOne(id)`.
+
+### `settings`
+Single MongoDB document (`key: 'global'`) stores runtime config overrides. `getEffectiveConfig()` merges DB values over env vars. API keys are never returned in responses — only boolean `*KeySet` flags.
+
+---
 
 ## Frontend Architecture
 
-- **Router**: TanStack Router with file-based routing (`src/routes/`)
-- **Data Fetching**: TanStack Query with Axios client (`src/lib/api.ts`)
-- **UI**: Radix UI primitives + TailwindCSS v4 design tokens
-- **State**: React Query cache + local component state
+### Routing
+File-based routing via TanStack Router plugin. Routes:
+- `/_layout/tracker` — 3-step flow: prompt → plan review → report
+- `/_layout/history` — past queries list
+- `/_layout/history/$id` — single query detail (reuses `ReportView`)
+- `/_layout/settings` — API key and provider configuration
 
-## Backend Architecture
+### State Management
+- Server state: TanStack Query (cache, mutations, invalidation)
+- UI flow state: local `useState` in `TrackerPage` (step state machine)
+- No global client state library needed
 
-- **Framework**: NestJS with feature modules
-- **Database**: MongoDB via Mongoose
-- **Queue**: BullMQ + Redis for background jobs
-- **Config**: Environment-based via `ConfigService`
+### Tracker Flow State Machine
+```
+'input'
+   │  generatePlan.mutate()
+   ▼
+'reviewing'  ←─── analyzePlan.isError (stays in review)
+   │  analyzePlan.mutate() → isPending shows AnalyzingState
+   ▼
+'done'
+```
 
-## Data Flow
-
-1. Frontend makes HTTP request via `src/lib/api.ts` (Axios)
-2. Dev: Rsbuild proxies `/api/*` → backend port 5002
-3. Backend validates request (ValidationPipe + class-validator)
-4. Feature service handles business logic
-5. Data persisted to MongoDB
-
-## Adding New Features
-
-See [README.md](../README.md) for step-by-step instructions.
+### API Layer
+All API calls go through `src/lib/api.ts` (Axios instance with `/api` base URL). In development, Rsbuild proxies `/api/*` to the backend. Feature API hooks live in `src/features/<feature>/api/`.
