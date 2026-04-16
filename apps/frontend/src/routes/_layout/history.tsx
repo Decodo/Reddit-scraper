@@ -3,8 +3,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Search, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { useQueriesQuery, useDeleteQueryMutation } from '@/features/queries/api/useQueriesApi';
+
+const PAGE_SIZE = 10;
 
 export const Route = createFileRoute('/_layout/history')({
   component: HistoryPage,
@@ -21,6 +24,7 @@ function HistoryPage() {
   const { pathname } = useLocation();
   const { data: queries, isLoading } = useQueriesQuery();
   const deleteMutation = useDeleteQueryMutation();
+  const [page, setPage] = useState(0);
 
   // When navigated to a child route (e.g. /history/:id), yield to the child component.
   // TanStack Router flat-file routing makes history.$id a child of this route,
@@ -63,8 +67,9 @@ function HistoryPage() {
           </CardContent>
         </Card>
       ) : (
+        <>
         <div className="space-y-2">
-          {queries.map((query) => (
+          {queries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((query) => (
             <Card key={query._id} className="group hover:bg-muted/30 transition-colors">
               <CardContent className="flex items-center gap-4 py-4">
                 <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -129,6 +134,37 @@ function HistoryPage() {
             </Card>
           ))}
         </div>
+
+        {/* Pagination */}
+        {queries.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-muted-foreground">
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, queries.length)} of{' '}
+              {queries.length}
+            </p>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 0}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={(page + 1) * PAGE_SIZE >= queries.length}
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

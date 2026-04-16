@@ -8,8 +8,9 @@ import { PlanReview } from '@/features/tracker/components/PlanReview';
 import { ReportView } from '@/features/tracker/components/ReportView';
 import {
   useGeneratePlanMutation,
-  useAnalyzePlanMutation,
+  useAnalyzePlanStream,
 } from '@/features/tracker/api/useTrackerApi';
+import type { ProgressState } from '@/features/tracker/api/useTrackerApi';
 import { exportAsMarkdown, exportAsJson } from '@/features/tracker/utils/export';
 import type { ScrapingPlan, AnalyzeResult, TimeRange } from '@/features/tracker/tracker.types';
 
@@ -22,28 +23,51 @@ type Step =
   | { stage: 'reviewing'; plan: ScrapingPlan; prompt: string }
   | { stage: 'done'; result: AnalyzeResult; prompt: string };
 
-const AnalyzingState = () => (
-  <div className="space-y-5 py-2">
-    <div className="flex items-center gap-3">
-      <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      <p className="text-sm text-muted-foreground">
-        Scraping Reddit and generating your report…
+const AnalyzingState = ({ progress }: { progress: ProgressState | null }) => {
+  const showBar =
+    progress !== null && progress.total > 0 && progress.completed < progress.total;
+
+  return (
+    <div className="space-y-5 py-2">
+      <div className="space-y-1">
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+          <p className="text-sm text-muted-foreground">
+            {progress?.label ?? 'Scraping Reddit and generating your report…'}
+          </p>
+        </div>
+        {progress?.sublabel && (
+          <p className="truncate pl-7 text-xs text-muted-foreground">{progress.sublabel}</p>
+        )}
+      </div>
+      {showBar && (
+        <div className="space-y-1">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+              style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+            />
+          </div>
+          <p className="text-right text-xs text-muted-foreground">
+            {Math.round((progress.completed / progress.total) * 100)}%
+          </p>
+        </div>
+      )}
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div
+            key={i}
+            className="h-12 rounded-md bg-muted animate-pulse"
+            style={{ animationDelay: `${i * 150}ms` }}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        This typically takes 10–30 seconds depending on the number of subreddits.
       </p>
     </div>
-    <div className="space-y-3">
-      {[...Array(3)].map((_, i) => (
-        <div
-          key={i}
-          className="h-12 rounded-md bg-muted animate-pulse"
-          style={{ animationDelay: `${i * 150}ms` }}
-        />
-      ))}
-    </div>
-    <p className="text-xs text-muted-foreground">
-      This typically takes 10–30 seconds depending on the number of subreddits.
-    </p>
-  </div>
-);
+  );
+};
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -57,7 +81,7 @@ const ErrorMessage = ({ message }: { message: string }) => (
 function TrackerPage() {
   const [step, setStep] = useState<Step>({ stage: 'input' });
   const generatePlan = useGeneratePlanMutation();
-  const analyzePlan = useAnalyzePlanMutation();
+  const analyzePlan = useAnalyzePlanStream();
 
   const handlePromptSubmit = (
     prompt: string,
@@ -139,7 +163,7 @@ function TrackerPage() {
 
             {step.stage === 'reviewing' && (
               analyzePlan.isPending ? (
-                <AnalyzingState />
+                <AnalyzingState progress={analyzePlan.progress} />
               ) : (
                 <>
                   <PlanReview

@@ -15,6 +15,19 @@ const MAX_POSTS_TOTAL = 30;
 const MAX_POSTS_DEEP_DIVE = 8;
 const SCRAPE_CONCURRENCY = 4; // max simultaneous Decodo requests to avoid 429s
 
+// ---------------------------------------------------------------------------
+// Progress streaming types
+// ---------------------------------------------------------------------------
+
+export type ProgressEvent =
+  | { type: 'started'; totalTasks: number; queries: number; subreddits: number }
+  | { type: 'task_complete'; completed: number; total: number; label: string }
+  | { type: 'deep_diving'; posts: number }
+  | { type: 'summarizing' }
+  | { type: 'saving' };
+
+export type OnProgress = (event: ProgressEvent) => void;
+
 @Injectable()
 export class TrackerService {
   private readonly logger = new Logger(TrackerService.name);
@@ -83,7 +96,7 @@ export class TrackerService {
   // Endpoint 2: execute the plan and return a summarized report
   // ---------------------------------------------------------------------------
 
-  async analyzePlan(dto: AnalyzePlanDto): Promise<{
+  async analyzePlan(dto: AnalyzePlanDto, onProgress?: OnProgress): Promise<{
     id: string;
     plan: AnalyzePlanDto;
     posts: RedditPost[];
@@ -97,7 +110,7 @@ export class TrackerService {
     // Step 1: parallel scraping (concurrency-capped)
     this.logger.log(`[Analyze] Step 1/4 — Scraping (${dto.queries.length} searches + ${dto.subreddits.length} subreddit feeds, max ${SCRAPE_CONCURRENCY} concurrent)...`);
     const t1 = Date.now();
-    const { posts, searchPostIds } = await this.scrapeAll(dto);
+    const { posts, searchPostIds } = await this.scrapeAll(dto, onProgress);
     this.logger.log(`[Analyze] Step 1/4 ✓ — ${posts.length} posts collected in ${Date.now() - t1}ms`);
 
     // Step 2: deep-dive comment threads — prefer search results (topically relevant)
@@ -106,6 +119,7 @@ export class TrackerService {
     const deepDiveCandidates = searchPosts.length > 0 ? searchPosts : posts;
     const deepDivePosts = deepDiveCandidates.slice(0, MAX_POSTS_DEEP_DIVE);
     this.logger.log(`[Analyze] Step 2/4 — Deep-diving ${deepDivePosts.length} top posts for comments...`);
+    onProgress?.({ type: 'deep_diving', posts: deepDivePosts.length });
     const t2 = Date.now();
     const postsWithComments = await this.deepDive(deepDivePosts);
     const totalComments = postsWithComments.reduce((n, p) => n + p.comments.length, 0);
@@ -113,6 +127,7 @@ export class TrackerService {
 
     // Step 3: LLM summarization
     this.logger.log(`[Analyze] Step 3/4 — Sending ${posts.length} posts to LLM for summarization...`);
+    onProgress?.({ type: 'summarizing' });
     const t3 = Date.now();
     const report = await this.summarize(dto.prompt, posts, postsWithComments);
     this.logger.log(`[Analyze] Step 3/4 ✓ — Report generated in ${Date.now() - t3}ms`);
@@ -120,6 +135,7 @@ export class TrackerService {
 
     // Step 4: persist to query history
     this.logger.log(`[Analyze] Step 4/4 — Persisting to MongoDB...`);
+    onProgress?.({ type: 'saving' });
     const saved = await this.queriesService.create({
       prompt: dto.prompt,
       plan: {
@@ -142,28 +158,39 @@ export class TrackerService {
   // Internals
   // ---------------------------------------------------------------------------
 
-  private async scrapeAll(dto: AnalyzePlanDto): Promise<{
+  private async scrapeAll(dto: AnalyzePlanDto, onProgress?: OnProgress): Promise<{
     posts: RedditPost[];
     searchPostIds: Set<string>;
   }> {
+    const totalTasks = dto.queries.length + dto.subreddits.length;
+    let completedTasks = 0;
+
+    onProgress?.({ type: 'started', totalTasks, queries: dto.queries.length, subreddits: dto.subreddits.length });
+
     const searchTasks: (() => Promise<RedditPost[]>)[] = dto.queries.map(
-      (query) => () =>
-        this.decodoService
+      (query) => async () => {
+        const result = await this.decodoService
           .searchReddit({ query, timeRange: dto.timeRange })
           .catch((err) => {
             this.logger.warn(`Search query failed for "${query}": ${String(err)}`);
             return [] as RedditPost[];
-          }),
+          });
+        onProgress?.({ type: 'task_complete', completed: ++completedTasks, total: totalTasks, label: `search: "${query}"` });
+        return result;
+      },
     );
 
     const subredditTasks: (() => Promise<RedditPost[]>)[] = dto.subreddits.map(
-      (subreddit) => () =>
-        this.decodoService
+      (subreddit) => async () => {
+        const result = await this.decodoService
           .scrapeSubreddit({ subreddit })
           .catch((err) => {
             this.logger.warn(`Subreddit scrape failed for r/${subreddit}: ${String(err)}`);
             return [] as RedditPost[];
-          }),
+          });
+        onProgress?.({ type: 'task_complete', completed: ++completedTasks, total: totalTasks, label: `r/${subreddit}` });
+        return result;
+      },
     );
 
     const allTasks = [...searchTasks, ...subredditTasks];
