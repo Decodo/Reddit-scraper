@@ -96,7 +96,7 @@ export class TrackerService {
   // Endpoint 2: execute the plan and return a summarized report
   // ---------------------------------------------------------------------------
 
-  async analyzePlan(dto: AnalyzePlanDto, onProgress?: OnProgress): Promise<{
+  async analyzePlan(dto: AnalyzePlanDto, onProgress?: OnProgress, signal?: AbortSignal): Promise<{
     id: string;
     plan: AnalyzePlanDto;
     posts: RedditPost[];
@@ -110,8 +110,10 @@ export class TrackerService {
     // Step 1: parallel scraping (concurrency-capped)
     this.logger.log(`[Analyze] Step 1/4 — Scraping (${dto.queries.length} searches + ${dto.subreddits.length} subreddit feeds, max ${SCRAPE_CONCURRENCY} concurrent)...`);
     const t1 = Date.now();
-    const { posts, searchPostIds } = await this.scrapeAll(dto, onProgress);
+    const { posts, searchPostIds } = await this.scrapeAll(dto, onProgress, signal);
     this.logger.log(`[Analyze] Step 1/4 ✓ — ${posts.length} posts collected in ${Date.now() - t1}ms`);
+
+    if (signal?.aborted) throw new Error('Request was cancelled');
 
     // Step 2: deep-dive comment threads — prefer search results (topically relevant)
     // over subreddit hot posts (high upvotes but often off-topic)
@@ -121,15 +123,17 @@ export class TrackerService {
     this.logger.log(`[Analyze] Step 2/4 — Deep-diving ${deepDivePosts.length} top posts for comments...`);
     onProgress?.({ type: 'deep_diving', posts: deepDivePosts.length });
     const t2 = Date.now();
-    const postsWithComments = await this.deepDive(deepDivePosts);
+    const postsWithComments = await this.deepDive(deepDivePosts, signal);
     const totalComments = postsWithComments.reduce((n, p) => n + p.comments.length, 0);
     this.logger.log(`[Analyze] Step 2/4 ✓ — ${totalComments} comments fetched in ${Date.now() - t2}ms`);
+
+    if (signal?.aborted) throw new Error('Request was cancelled');
 
     // Step 3: LLM summarization
     this.logger.log(`[Analyze] Step 3/4 — Sending ${posts.length} posts to LLM for summarization...`);
     onProgress?.({ type: 'summarizing' });
     const t3 = Date.now();
-    const report = await this.summarize(dto.prompt, posts, postsWithComments);
+    const report = await this.summarize(dto.prompt, posts, postsWithComments, signal);
     this.logger.log(`[Analyze] Step 3/4 ✓ — Report generated in ${Date.now() - t3}ms`);
     this.logger.log(`[Analyze] Report sentiment: ${report.sentiment.overall} | themes: ${report.themes.map((t) => t.title).join(', ')}`);
 
@@ -158,7 +162,7 @@ export class TrackerService {
   // Internals
   // ---------------------------------------------------------------------------
 
-  private async scrapeAll(dto: AnalyzePlanDto, onProgress?: OnProgress): Promise<{
+  private async scrapeAll(dto: AnalyzePlanDto, onProgress?: OnProgress, signal?: AbortSignal): Promise<{
     posts: RedditPost[];
     searchPostIds: Set<string>;
   }> {
@@ -170,8 +174,9 @@ export class TrackerService {
     const searchTasks: (() => Promise<RedditPost[]>)[] = dto.queries.map(
       (query) => async () => {
         const result = await this.decodoService
-          .searchReddit({ query, timeRange: dto.timeRange })
-          .catch((err) => {
+          .searchReddit({ query, timeRange: dto.timeRange }, signal)
+          .catch((err: unknown) => {
+            if ((err as Error)?.name === 'AbortError') throw err;
             this.logger.warn(`Search query failed for "${query}": ${String(err)}`);
             return [] as RedditPost[];
           });
@@ -183,8 +188,9 @@ export class TrackerService {
     const subredditTasks: (() => Promise<RedditPost[]>)[] = dto.subreddits.map(
       (subreddit) => async () => {
         const result = await this.decodoService
-          .scrapeSubreddit({ subreddit })
-          .catch((err) => {
+          .scrapeSubreddit({ subreddit }, signal)
+          .catch((err: unknown) => {
+            if ((err as Error)?.name === 'AbortError') throw err;
             this.logger.warn(`Subreddit scrape failed for r/${subreddit}: ${String(err)}`);
             return [] as RedditPost[];
           });
@@ -203,7 +209,7 @@ export class TrackerService {
     const searchPostIds = new Set(searchResults.map((p) => p.id).filter(Boolean));
 
     const all = [...searchResults, ...subredditResults];
-    const ranked = this.deduplicateAndRank(all).slice(0, MAX_POSTS_TOTAL);
+    const ranked = this.deduplicateAndRank(all).slice(0, dto.maxPosts ?? MAX_POSTS_TOTAL);
 
     this.logger.log(
       `[Scrape] Search: ${searchResults.length} | Subreddits: ${subredditResults.length}` +
@@ -238,11 +244,13 @@ export class TrackerService {
 
   private async deepDive(
     posts: RedditPost[],
+    signal?: AbortSignal,
   ): Promise<RedditPostWithComments[]> {
     const tasks = posts.map((post) =>
       this.decodoService
-        .scrapePost({ subreddit: post.subreddit, postId: post.id })
-        .catch((err) => {
+        .scrapePost({ subreddit: post.subreddit, postId: post.id }, signal)
+        .catch((err: unknown) => {
+          if ((err as Error)?.name === 'AbortError') throw err;
           this.logger.warn(
             `Comment scrape failed for post ${post.id}: ${String(err)}`,
           );
@@ -257,6 +265,7 @@ export class TrackerService {
     prompt: string,
     posts: RedditPost[],
     postsWithComments: RedditPostWithComments[],
+    signal?: AbortSignal,
   ): Promise<RedditReport> {
     const contentSummary = this.buildContentSummary(posts, postsWithComments);
 
@@ -273,7 +282,7 @@ export class TrackerService {
         { role: 'user', content: userMessage },
       ],
       responseFormat: 'json',
-    });
+    }, signal);
 
     return this.llmService.parseJsonResponse<RedditReport>(response.content);
   }

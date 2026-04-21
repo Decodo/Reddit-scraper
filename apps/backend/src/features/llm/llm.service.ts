@@ -13,15 +13,15 @@ export class LlmService {
 
   constructor(private readonly settingsService: SettingsService) {}
 
-  async complete(request: LlmRequest): Promise<LlmResponse> {
+  async complete(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
     const config = await this.settingsService.getEffectiveConfig();
     const provider = (request.provider ?? config.provider) as LlmProvider;
 
     switch (provider) {
       case 'claude':
-        return this.completeClaude(request, config);
+        return this.completeClaude(request, config, signal);
       case 'openai':
-        return this.completeOpenAi(request, config);
+        return this.completeOpenAi(request, config, signal);
       case 'gemini':
         return this.completeGemini(request, config);
       default:
@@ -32,6 +32,7 @@ export class LlmService {
   private async completeClaude(
     request: LlmRequest,
     config: EffectiveConfig,
+    signal?: AbortSignal,
   ): Promise<LlmResponse> {
     if (!config.anthropicApiKey) {
       throw new BadRequestException('ANTHROPIC_API_KEY is not configured');
@@ -50,7 +51,7 @@ export class LlmService {
         role: m.role,
         content: m.content,
       })),
-    });
+    }, { signal });
 
     const content =
       response.content[0].type === 'text' ? response.content[0].text : '';
@@ -61,6 +62,7 @@ export class LlmService {
   private async completeOpenAi(
     request: LlmRequest,
     config: EffectiveConfig,
+    signal?: AbortSignal,
   ): Promise<LlmResponse> {
     if (!config.openaiApiKey) {
       throw new BadRequestException('OPENAI_API_KEY is not configured');
@@ -81,7 +83,7 @@ export class LlmService {
       ...(request.responseFormat === 'json'
         ? { response_format: { type: 'json_object' as const } }
         : {}),
-    });
+    }, { signal });
 
     const content = response.choices[0]?.message?.content ?? '';
     return { content, provider: 'openai', model };

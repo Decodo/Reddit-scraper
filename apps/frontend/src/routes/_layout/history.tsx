@@ -70,36 +70,37 @@ function HistoryPage() {
         <>
         <div className="space-y-2">
           {queries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((query) => (
-            <Card key={query._id} className="group hover:bg-muted/30 transition-colors">
-              <CardContent className="flex items-center gap-4 py-4">
-                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Card key={query._id} className="group hover:bg-muted/30 transition-colors overflow-hidden">
+              <CardContent className="flex items-center gap-2 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4">
+                <Clock className="hidden sm:block h-4 w-4 text-muted-foreground shrink-0" />
                 <Link
                   to="/history/$id"
                   params={{ id: query._id }}
                   className="flex-1 min-w-0"
                 >
                   <p className="text-sm font-medium truncate">{query.prompt}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(query.createdAt).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    {query.report?.sentiment?.overall && (
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${
-                          sentimentColor[query.report.sentiment.overall] ??
-                          sentimentColor.neutral
-                        }`}
-                      >
-                        {query.report.sentiment.overall}
+                  <div className="mt-1 space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {new Date(query.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
-                    )}
-                    <div className="flex gap-1">
+                      {query.report?.sentiment?.overall && (
+                        <span
+                          className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${
+                            sentimentColor[query.report.sentiment.overall] ??
+                            sentimentColor.neutral
+                          }`}
+                        >
+                          {query.report.sentiment.overall}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
                       {query.plan.subreddits.slice(0, 3).map((sub) => (
                         <Badge
                           key={sub}
@@ -120,7 +121,7 @@ function HistoryPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  className="opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   disabled={deleteMutation.isPending}
                   onClick={(e) => {
                     e.preventDefault();

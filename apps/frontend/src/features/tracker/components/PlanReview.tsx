@@ -17,11 +17,13 @@ import type { ScrapingPlan, TimeRange } from '../tracker.types';
 interface PlanReviewProps {
   plan: ScrapingPlan;
   prompt: string;
+  maxPosts?: number;
   onAnalyze: (plan: {
     prompt: string;
     subreddits: string[];
     queries: string[];
     timeRange: TimeRange;
+    maxPosts?: number;
   }) => void;
   onBack: () => void;
   isLoading: boolean;
@@ -30,6 +32,7 @@ interface PlanReviewProps {
 export const PlanReview = ({
   plan,
   prompt,
+  maxPosts,
   onAnalyze,
   onBack,
   isLoading,
@@ -61,7 +64,7 @@ export const PlanReview = ({
   const handleSubmit = () => {
     const validQueries = queries.map((q) => q.trim()).filter(Boolean);
     if (!subreddits.length || !validQueries.length) return;
-    onAnalyze({ prompt, subreddits, queries: validQueries, timeRange });
+    onAnalyze({ prompt, subreddits, queries: validQueries, timeRange, maxPosts });
   };
 
   const canSubmit =
@@ -172,7 +175,7 @@ export const PlanReview = ({
           onValueChange={(v) => setTimeRange(v as TimeRange)}
           disabled={isLoading}
         >
-          <SelectTrigger className="h-8 w-48 text-sm">
+          <SelectTrigger className="h-8 w-full sm:w-48 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -184,12 +187,13 @@ export const PlanReview = ({
         </Select>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col-reverse sm:flex-row gap-3">
         <Button
           type="button"
           variant="outline"
           onClick={onBack}
           disabled={isLoading}
+          className="w-full sm:w-auto"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back

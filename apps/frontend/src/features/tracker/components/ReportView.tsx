@@ -154,7 +154,7 @@ export const ReportView = ({
                     {post.title}
                     <ExternalLink className="h-3 w-3 mt-0.5 shrink-0 opacity-50 group-hover:opacity-100" />
                   </a>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                     <Badge variant="outline" className="text-xs px-1.5 py-0">
                       r/{post.subreddit}
                     </Badge>

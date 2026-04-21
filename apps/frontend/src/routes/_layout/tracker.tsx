@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { PromptForm } from '@/features/tracker/components/PromptForm';
 import { PlanReview } from '@/features/tracker/components/PlanReview';
 import { ReportView } from '@/features/tracker/components/ReportView';
+import { MiniGame } from '@/features/tracker/components/MiniGame';
 import {
   useGeneratePlanMutation,
   useAnalyzePlanStream,
@@ -20,21 +21,26 @@ export const Route = createFileRoute('/_layout/tracker')({
 
 type Step =
   | { stage: 'input' }
-  | { stage: 'reviewing'; plan: ScrapingPlan; prompt: string }
+  | { stage: 'reviewing'; plan: ScrapingPlan; prompt: string; maxPosts?: number }
   | { stage: 'done'; result: AnalyzeResult; prompt: string };
 
-const AnalyzingState = ({ progress }: { progress: ProgressState | null }) => {
+const AnalyzingState = ({ progress, onCancel }: { progress: ProgressState | null; onCancel: () => void }) => {
   const showBar =
     progress !== null && progress.total > 0 && progress.completed < progress.total;
 
   return (
     <div className="space-y-5 py-2">
       <div className="space-y-1">
-        <div className="flex items-center gap-3">
-          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
-          <p className="text-sm text-muted-foreground">
-            {progress?.label ?? 'Scraping Reddit and generating your report…'}
-          </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+            <p className="text-sm text-muted-foreground truncate">
+              {progress?.label ?? 'Scraping Reddit and generating your report…'}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={onCancel} className="shrink-0">
+            Cancel
+          </Button>
         </div>
         {progress?.sublabel && (
           <p className="truncate pl-7 text-xs text-muted-foreground">{progress.sublabel}</p>
@@ -69,12 +75,21 @@ const AnalyzingState = ({ progress }: { progress: ProgressState | null }) => {
   );
 };
 
-const ErrorMessage = ({ message }: { message: string }) => (
-  <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-    {message}{' '}
-    <Link to="/settings" className="underline underline-offset-2 font-medium">
-      Check your API key settings.
-    </Link>
+const getApiError = (error: unknown): string | undefined =>
+  (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+  ?? (error as Error)?.message;
+
+const ErrorMessage = ({ message, error }: { message: string; error?: unknown }) => (
+  <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive space-y-1">
+    <p>{message}</p>
+    {getApiError(error) && (
+      <p className="text-xs opacity-80 font-mono">{getApiError(error)}</p>
+    )}
+    <p>
+      <Link to="/settings" className="underline underline-offset-2 font-medium">
+        Check your API key settings.
+      </Link>
+    </p>
   </div>
 );
 
@@ -85,13 +100,14 @@ function TrackerPage() {
 
   const handlePromptSubmit = (
     prompt: string,
-    options: { subreddits?: string[]; timeRange?: TimeRange },
+    options: { subreddits?: string[]; timeRange?: TimeRange; maxPosts?: number },
   ) => {
+    const { maxPosts, ...planOptions } = options;
     generatePlan.mutate(
-      { prompt, ...options },
+      { prompt, ...planOptions },
       {
         onSuccess: (plan) => {
-          setStep({ stage: 'reviewing', plan, prompt });
+          setStep({ stage: 'reviewing', plan, prompt, maxPosts });
         },
       },
     );
@@ -102,6 +118,7 @@ function TrackerPage() {
     subreddits: string[];
     queries: string[];
     timeRange: TimeRange;
+    maxPosts?: number;
   }) => {
     analyzePlan.mutate(planInput, {
       onSuccess: (result) => {
@@ -153,28 +170,30 @@ function TrackerPage() {
               <>
                 <PromptForm
                   onSubmit={handlePromptSubmit}
+                  onCancel={generatePlan.reset}
                   isLoading={generatePlan.isPending}
                 />
                 {generatePlan.isError && (
-                  <ErrorMessage message="Failed to generate a scraping plan." />
+                  <ErrorMessage message="Failed to generate a scraping plan." error={generatePlan.error} />
                 )}
               </>
             )}
 
             {step.stage === 'reviewing' && (
               analyzePlan.isPending ? (
-                <AnalyzingState progress={analyzePlan.progress} />
+                <AnalyzingState progress={analyzePlan.progress} onCancel={analyzePlan.reset} />
               ) : (
                 <>
                   <PlanReview
                     plan={step.plan}
                     prompt={step.prompt}
+                    maxPosts={step.maxPosts}
                     onAnalyze={handleAnalyze}
                     onBack={reset}
                     isLoading={false}
                   />
                   {analyzePlan.isError && (
-                    <ErrorMessage message="Analysis failed. Check your Decodo and LLM API keys." />
+                    <ErrorMessage message="Analysis failed." error={analyzePlan.error} />
                   )}
                 </>
               )
@@ -192,6 +211,8 @@ function TrackerPage() {
             )}
           </CardContent>
         </Card>
+
+        {step.stage === 'reviewing' && analyzePlan.isPending && <MiniGame />}
 
         {step.stage === 'input' && !generatePlan.isPending && (
           <p className="text-center text-xs text-muted-foreground">

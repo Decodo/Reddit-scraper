@@ -7,7 +7,9 @@ import { ConfigService } from './config.service';
   imports: [
     NestConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
+      // Check backend-local overrides first, then fall back to monorepo root .env.
+      // This covers both `nest start` from apps/backend/ and running from the repo root.
+      envFilePath: ['.env.local', '.env', '../../.env.local', '../../.env'],
     }),
   ],
   providers: [ConfigService],

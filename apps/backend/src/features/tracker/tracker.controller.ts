@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Res, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { Response } from 'express';
 import { TrackerService } from './tracker.service';
 import type { OnProgress } from './tracker.service';
@@ -7,6 +7,8 @@ import { AnalyzePlanDto } from './dto/analyze-plan.dto';
 
 @Controller('tracker')
 export class TrackerController {
+  private readonly logger = new Logger(TrackerController.name);
+
   constructor(private readonly trackerService: TrackerService) {}
 
   /**
@@ -53,8 +55,15 @@ export class TrackerController {
 
     const onProgress: OnProgress = (event) => send(event);
 
+    const ac = new AbortController();
+    res.on('close', () => {
+      if (ac.signal.aborted) return;
+      this.logger.log(`[Analyze] Client disconnected — cancelling request for prompt: "${dto.prompt}"`);
+      ac.abort();
+    });
+
     try {
-      const result = await this.trackerService.analyzePlan(dto, onProgress);
+      const result = await this.trackerService.analyzePlan(dto, onProgress, ac.signal);
       send({ type: 'complete', ...result });
     } catch (err) {
       send({ type: 'error', message: err instanceof Error ? err.message : String(err) });

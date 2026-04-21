@@ -4,6 +4,10 @@ import {
   IsArray,
   IsIn,
   ArrayMinSize,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 
 export class AnalyzePlanDto {
@@ -23,4 +27,10 @@ export class AnalyzePlanDto {
 
   @IsIn(['day', 'week', 'month', 'year'])
   timeRange: 'day' | 'week' | 'month' | 'year';
+
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(100)
+  maxPosts?: number;
 }

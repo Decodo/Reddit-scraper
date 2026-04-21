@@ -8,20 +8,4 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsString()
   model?: string;
-
-  @IsOptional()
-  @IsString()
-  decodoApiKey?: string;
-
-  @IsOptional()
-  @IsString()
-  anthropicApiKey?: string;
-
-  @IsOptional()
-  @IsString()
-  openaiApiKey?: string;
-
-  @IsOptional()
-  @IsString()
-  geminiApiKey?: string;
 }

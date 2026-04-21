@@ -8,7 +8,7 @@ export class SettingsController {
 
   /**
    * GET /settings
-   * Returns current config status — key presence only, never actual values.
+   * Returns current config status — key presence only, never actual key values.
    */
   @Get()
   async getStatus() {
@@ -17,8 +17,7 @@ export class SettingsController {
 
   /**
    * PATCH /settings
-   * Updates one or more settings. Empty-string values are ignored.
-   * Returns updated status after save.
+   * Updates provider and/or model preference. API keys cannot be set here.
    */
   @Patch()
   @HttpCode(HttpStatus.OK)

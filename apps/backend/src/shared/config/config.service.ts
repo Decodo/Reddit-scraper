@@ -30,18 +30,9 @@ export class ConfigService {
     };
   }
 
-  get redis() {
-    return {
-      host: this.configService.get<string>("REDIS_HOST", "localhost"),
-      port: parseInt(this.configService.get<string>("REDIS_PORT", "6378"), 10),
-      password: this.configService.get<string>("REDIS_PASSWORD", ""),
-      db: parseInt(this.configService.get<string>("REDIS_DB", "0"), 10),
-    };
-  }
-
   get decodo() {
     return {
-      apiKey: this.configService.get<string>("DECODO_API_KEY", ""),
+      apiKey: this.configService.get<string>("DECODO_BASIC_AUTH_TOKEN", ""),
       baseUrl: "https://scraper-api.decodo.com/v2",
     };
   }

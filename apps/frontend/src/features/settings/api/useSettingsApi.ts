@@ -10,13 +10,9 @@ export interface SettingsStatus {
   geminiKeySet: boolean;
 }
 
-export interface UpdateSettingsInput {
+export interface UpdateProviderInput {
   provider?: string;
   model?: string;
-  decodoApiKey?: string;
-  anthropicApiKey?: string;
-  openaiApiKey?: string;
-  geminiApiKey?: string;
 }
 
 const SETTINGS_KEY = ['settings'] as const;
@@ -26,7 +22,7 @@ const fetchSettings = async (): Promise<SettingsStatus> => {
   return data;
 };
 
-const updateSettings = async (input: UpdateSettingsInput): Promise<SettingsStatus> => {
+const updateSettings = async (input: UpdateProviderInput): Promise<SettingsStatus> => {
   const { data } = await api.patch<SettingsStatus>('/settings', input);
   return data;
 };

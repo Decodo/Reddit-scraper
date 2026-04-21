@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
 import { ReportView } from '@/features/tracker/components/ReportView';
@@ -40,12 +41,30 @@ function HistoryDetailPage() {
       )}
 
       {query && (
-        <ReportView
-          prompt={query.prompt}
-          report={query.report}
-          onExportMarkdown={() => exportAsMarkdown(query.prompt, query.report)}
-          onExportJson={() => exportAsJson(query)}
-        />
+        <>
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {query.plan.subreddits.map((sub) => (
+                <Badge key={sub} variant="secondary" className="text-xs">
+                  r/{sub}
+                </Badge>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {query.plan.queries.map((q, i) => (
+                <span key={i}>"{q}"</span>
+              ))}
+              <span className="capitalize">{query.plan.timeRange}</span>
+            </div>
+          </div>
+
+          <ReportView
+            prompt={query.prompt}
+            report={query.report}
+            onExportMarkdown={() => exportAsMarkdown(query.prompt, query.report)}
+            onExportJson={() => exportAsJson(query)}
+          />
+        </>
       )}
     </div>
   );

@@ -34,14 +34,14 @@ function DashboardPage() {
 
       {/* CTA */}
       <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="flex items-center justify-between gap-4 py-5">
+        <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-5">
           <div className="space-y-1">
             <p className="font-medium">Start a new analysis</p>
             <p className="text-sm text-muted-foreground">
               Enter any topic and get AI-summarized Reddit intelligence in seconds.
             </p>
           </div>
-          <Button asChild className="shrink-0">
+          <Button asChild className="shrink-0 w-full sm:w-auto">
             <Link to="/tracker">
               <Zap className="mr-2 h-4 w-4" />
               New analysis

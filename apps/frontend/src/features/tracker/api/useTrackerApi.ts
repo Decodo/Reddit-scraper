@@ -14,6 +14,7 @@ interface AnalyzePlanInput {
   subreddits: string[];
   queries: string[];
   timeRange: TimeRange;
+  maxPosts?: number;
 }
 
 // ---------------------------------------------------------------------------

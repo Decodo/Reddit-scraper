@@ -3,6 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type SettingsDocument = HydratedDocument<Settings>;
 
+/** Stores user-selected LLM preferences. API keys are never stored here. */
 @Schema({ timestamps: true })
 export class Settings {
   /** Always 'global' — only one settings document exists */
@@ -14,18 +15,6 @@ export class Settings {
 
   @Prop()
   model?: string;
-
-  @Prop()
-  decodoApiKey?: string;
-
-  @Prop()
-  anthropicApiKey?: string;
-
-  @Prop()
-  openaiApiKey?: string;
-
-  @Prop()
-  geminiApiKey?: string;
 }
 
 export const SettingsSchema = SchemaFactory.createForClass(Settings);

@@ -54,7 +54,7 @@ API keys can be set in two ways:
 
 ```env
 # Decodo Scraping API
-DECODO_API_KEY=your_decodo_key
+DECODO_BASIC_AUTH_TOKEN=your_decodo_token
 
 # LLM provider (claude | openai | gemini)
 LLM_PROVIDER=claude
@@ -65,9 +65,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=AIza...
 ```
-
-**Option B — Settings UI**  
-Go to **Settings** in the sidebar after starting the app. Keys are stored in MongoDB and override `.env` values at runtime.
 
 ---
 
@@ -88,7 +85,7 @@ Go to **Settings** in the sidebar after starting the app. Keys are stored in Mon
 | Layer    | Technology                                          |
 |----------|-----------------------------------------------------|
 | Frontend | React 19, TanStack Router, TanStack Query, Tailwind v4, Radix UI |
-| Backend  | NestJS 11, MongoDB (Mongoose), Redis, BullMQ        |
+| Backend  | NestJS 11, MongoDB (Mongoose)                       |
 | Scraping | Decodo Scraping API                                 |
 | LLMs     | Anthropic Claude (default), OpenAI GPT, Google Gemini |
 

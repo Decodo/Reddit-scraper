@@ -21,6 +21,7 @@ import {
   BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { History, Search, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -126,7 +127,7 @@ function LayoutComponent() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="max-h-svh">
+      <SidebarInset className="max-h-svh min-w-0">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -139,9 +140,12 @@ function LayoutComponent() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
-        <main className="relative flex-1 overflow-auto min-h-0 px-6">
-          <div className="mx-auto max-w-5xl">
+        <main className="relative flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-4 sm:px-6">
+          <div className="mx-auto w-full max-w-5xl">
             <Outlet />
           </div>
         </main>
