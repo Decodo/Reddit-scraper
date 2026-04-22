@@ -70,7 +70,9 @@ export class SettingsService {
   async update(input: { provider?: string; model?: string }): Promise<SettingsStatus> {
     const patch: Record<string, string> = {};
     if (input.provider) patch.provider = input.provider;
-    // Allow model to be cleared (empty string resets to provider default)
+    // Clear model when provider changes so a stale model from another provider isn't used
+    if (input.provider) patch.model = '';
+    // Allow explicit model override (empty string resets to provider default)
     if (input.model !== undefined) patch.model = input.model.trim();
 
     this.logger.log(`[Settings] Updating: ${JSON.stringify(patch)}`);

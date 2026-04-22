@@ -162,7 +162,7 @@ function SettingsPage() {
             <Label htmlFor="provider">Provider</Label>
             <Select
               value={provider}
-              onValueChange={(v) => setProvider(v as Provider)}
+              onValueChange={(v) => { setProvider(v as Provider); setModel(''); }}
               disabled={isLoading}
             >
               <SelectTrigger id="provider" className="w-full sm:w-56">
