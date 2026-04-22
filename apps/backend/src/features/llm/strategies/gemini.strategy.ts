@@ -1,17 +1,13 @@
 import { BadRequestException, Logger } from '@nestjs/common';
 import { GoogleGenAI } from '@google/genai';
-import type { EffectiveConfig } from '../../settings/settings.service';
 import { LLM_DEFAULTS } from '../llm.constants';
-import type { LlmRequest, LlmResponse } from '../llm.types';
-import type { LlmStrategy } from './llm-strategy.interface';
+import type { LlmResponse } from '../llm.types';
+import type { LlmStrategy, LlmStrategyArgs } from './llm-strategy.interface';
 
 export class GeminiStrategy implements LlmStrategy {
   private readonly logger = new Logger(GeminiStrategy.name);
 
-  async complete(
-    request: LlmRequest,
-    config: EffectiveConfig,
-  ): Promise<LlmResponse> {
+  async complete({ request, config }: LlmStrategyArgs): Promise<LlmResponse> {
     if (!config.geminiApiKey) {
       throw new BadRequestException('GEMINI_API_KEY is not configured');
     }

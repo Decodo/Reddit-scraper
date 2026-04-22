@@ -1,18 +1,13 @@
 import { BadRequestException, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import type { EffectiveConfig } from '../../settings/settings.service';
 import { LLM_DEFAULTS } from '../llm.constants';
-import type { LlmRequest, LlmResponse } from '../llm.types';
-import type { LlmStrategy } from './llm-strategy.interface';
+import type { LlmResponse } from '../llm.types';
+import type { LlmStrategy, LlmStrategyArgs } from './llm-strategy.interface';
 
 export class ClaudeStrategy implements LlmStrategy {
   private readonly logger = new Logger(ClaudeStrategy.name);
 
-  async complete(
-    request: LlmRequest,
-    config: EffectiveConfig,
-    signal?: AbortSignal,
-  ): Promise<LlmResponse> {
+  async complete({ request, config, signal }: LlmStrategyArgs): Promise<LlmResponse> {
     if (!config.anthropicApiKey) {
       throw new BadRequestException('ANTHROPIC_API_KEY is not configured');
     }

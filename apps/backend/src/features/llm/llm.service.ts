@@ -25,7 +25,7 @@ export class LlmService {
       throw new BadRequestException(`Unknown LLM provider: ${provider}`);
     }
 
-    return strategy.complete(request, config, signal);
+    return strategy.complete({ request, config, signal });
   }
 
   parseJsonResponse<T>(raw: string): T {
