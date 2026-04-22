@@ -1,6 +1,6 @@
 # Decodo Reddit Tracker
 
-An open-source Reddit intelligence tool powered by the [Decodo Scraping API](https://decodo.com). Enter any topic, get an AI-generated intelligence report from across Reddit — themes, sentiment, quotes, and top posts.
+An open-source Reddit intelligence tool powered by the [Decodo Scraping API](https://decodo.com/scraping/web). Enter any topic, get an AI-generated intelligence report from across Reddit — themes, sentiment, quotes, and top posts.
 
 ---
 
@@ -17,7 +17,7 @@ An open-source Reddit intelligence tool powered by the [Decodo Scraping API](htt
 
 - [Bun](https://bun.sh) ≥ 1.2.5
 - [Docker](https://docker.com) (for local MongoDB + Redis)
-- A **Decodo API key** — sign up at [decodo.com](https://decodo.com)
+- A **Decodo API key** — sign up at [decodo.com](https://dashboard.decodo.com/register?page=scrapers/pricing)
 - At least one LLM API key: **Anthropic**, **OpenAI**, or **Google Gemini**
 
 ---
@@ -71,7 +71,7 @@ GEMINI_API_KEY=AIza...
 ## Scripts
 
 | Command       | Description                              |
-|---------------|------------------------------------------|
+| ------------- | ---------------------------------------- |
 | `bun dev`     | Start frontend + backend in watch mode   |
 | `bun build`   | Build all packages                       |
 | `bun lint`    | Lint all packages                        |
@@ -82,12 +82,12 @@ GEMINI_API_KEY=AIza...
 
 ## Tech Stack
 
-| Layer    | Technology                                          |
-|----------|-----------------------------------------------------|
+| Layer    | Technology                                                       |
+| -------- | ---------------------------------------------------------------- |
 | Frontend | React 19, TanStack Router, TanStack Query, Tailwind v4, Radix UI |
-| Backend  | NestJS 11, MongoDB (Mongoose)                       |
-| Scraping | Decodo Scraping API                                 |
-| LLMs     | Anthropic Claude (default), OpenAI GPT, Google Gemini |
+| Backend  | NestJS 11, MongoDB (Mongoose)                                    |
+| Scraping | Decodo Scraping API                                              |
+| LLMs     | Anthropic Claude (default), OpenAI GPT, Google Gemini            |
 
 ---
 
@@ -124,15 +124,15 @@ docs/
 
 ## API Endpoints
 
-| Method | Path              | Description                                      |
-|--------|-------------------|--------------------------------------------------|
-| POST   | /tracker/plan     | Generate LLM scraping plan from a prompt         |
-| POST   | /tracker/analyze  | Execute plan, scrape Reddit, return report       |
-| GET    | /queries          | List past query history (no raw posts)           |
-| GET    | /queries/:id      | Full query result including posts                |
-| DELETE | /queries/:id      | Delete a query from history                      |
-| GET    | /settings         | Current config status (key presence, provider)  |
-| PATCH  | /settings         | Update API keys or LLM provider                  |
+| Method | Path             | Description                                    |
+| ------ | ---------------- | ---------------------------------------------- |
+| POST   | /tracker/plan    | Generate LLM scraping plan from a prompt       |
+| POST   | /tracker/analyze | Execute plan, scrape Reddit, return report     |
+| GET    | /queries         | List past query history (no raw posts)         |
+| GET    | /queries/:id     | Full query result including posts              |
+| DELETE | /queries/:id     | Delete a query from history                    |
+| GET    | /settings        | Current config status (key presence, provider) |
+| PATCH  | /settings        | Update API keys or LLM provider                |
 
 ---
 
@@ -140,11 +140,11 @@ docs/
 
 Three Decodo target types are used per analysis:
 
-| Step | Target | Purpose |
-|------|--------|---------|
-| 1 | `universal` | Global Reddit search across all subreddits |
-| 2 | `reddit_subreddit` | Hot posts from specific subreddits |
-| 3 | `reddit_post` | Full comment threads for deep analysis |
+| Step | Target             | Purpose                                    |
+| ---- | ------------------ | ------------------------------------------ |
+| 1    | `universal`        | Global Reddit search across all subreddits |
+| 2    | `reddit_subreddit` | Hot posts from specific subreddits         |
+| 3    | `reddit_post`      | Full comment threads for deep analysis     |
 
 The LLM generates 3–8 subreddits and 2–5 search queries from the user's prompt. Up to 30 posts are collected (deduped and ranked by upvotes), then the top 8 are fetched with full comments before LLM summarization.
 
