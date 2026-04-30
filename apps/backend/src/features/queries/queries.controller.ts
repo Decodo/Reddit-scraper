@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Delete,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Param, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { QueriesService } from './queries.service';
 
 @Controller('queries')

@@ -8,93 +8,81 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as LayoutRouteImport } from './routes/_layout'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as LayoutTrackerRouteImport } from './routes/_layout/tracker'
-import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
-import { Route as LayoutHistoryRouteImport } from './routes/_layout/history'
-import { Route as LayoutDashboardRouteImport } from './routes/_layout/dashboard'
-import { Route as LayoutHistoryIdRouteImport } from './routes/_layout/history.$id'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as LayoutRouteImport } from './routes/_layout';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as LayoutTrackerRouteImport } from './routes/_layout/tracker';
+import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings';
+import { Route as LayoutHistoryRouteImport } from './routes/_layout/history';
+import { Route as LayoutDashboardRouteImport } from './routes/_layout/dashboard';
+import { Route as LayoutHistoryIdRouteImport } from './routes/_layout/history.$id';
 
 const LayoutRoute = LayoutRouteImport.update({
   id: '/_layout',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LayoutTrackerRoute = LayoutTrackerRouteImport.update({
   id: '/tracker',
   path: '/tracker',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const LayoutHistoryRoute = LayoutHistoryRouteImport.update({
   id: '/history',
   path: '/history',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const LayoutDashboardRoute = LayoutDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => LayoutRoute,
-} as any)
+} as any);
 const LayoutHistoryIdRoute = LayoutHistoryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => LayoutHistoryRoute,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/dashboard': typeof LayoutDashboardRoute
-  '/history': typeof LayoutHistoryRouteWithChildren
-  '/settings': typeof LayoutSettingsRoute
-  '/tracker': typeof LayoutTrackerRoute
-  '/history/$id': typeof LayoutHistoryIdRoute
+  '/': typeof IndexRoute;
+  '/dashboard': typeof LayoutDashboardRoute;
+  '/history': typeof LayoutHistoryRouteWithChildren;
+  '/settings': typeof LayoutSettingsRoute;
+  '/tracker': typeof LayoutTrackerRoute;
+  '/history/$id': typeof LayoutHistoryIdRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/dashboard': typeof LayoutDashboardRoute
-  '/history': typeof LayoutHistoryRouteWithChildren
-  '/settings': typeof LayoutSettingsRoute
-  '/tracker': typeof LayoutTrackerRoute
-  '/history/$id': typeof LayoutHistoryIdRoute
+  '/': typeof IndexRoute;
+  '/dashboard': typeof LayoutDashboardRoute;
+  '/history': typeof LayoutHistoryRouteWithChildren;
+  '/settings': typeof LayoutSettingsRoute;
+  '/tracker': typeof LayoutTrackerRoute;
+  '/history/$id': typeof LayoutHistoryIdRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/_layout': typeof LayoutRouteWithChildren
-  '/_layout/dashboard': typeof LayoutDashboardRoute
-  '/_layout/history': typeof LayoutHistoryRouteWithChildren
-  '/_layout/settings': typeof LayoutSettingsRoute
-  '/_layout/tracker': typeof LayoutTrackerRoute
-  '/_layout/history/$id': typeof LayoutHistoryIdRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/_layout': typeof LayoutRouteWithChildren;
+  '/_layout/dashboard': typeof LayoutDashboardRoute;
+  '/_layout/history': typeof LayoutHistoryRouteWithChildren;
+  '/_layout/settings': typeof LayoutSettingsRoute;
+  '/_layout/tracker': typeof LayoutTrackerRoute;
+  '/_layout/history/$id': typeof LayoutHistoryIdRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/dashboard'
-    | '/history'
-    | '/settings'
-    | '/tracker'
-    | '/history/$id'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/dashboard'
-    | '/history'
-    | '/settings'
-    | '/tracker'
-    | '/history/$id'
+  fileRoutesByFullPath: FileRoutesByFullPath;
+  fullPaths: '/' | '/dashboard' | '/history' | '/settings' | '/tracker' | '/history/$id';
+  fileRoutesByTo: FileRoutesByTo;
+  to: '/' | '/dashboard' | '/history' | '/settings' | '/tracker' | '/history/$id';
   id:
     | '__root__'
     | '/'
@@ -103,85 +91,85 @@ export interface FileRouteTypes {
     | '/_layout/history'
     | '/_layout/settings'
     | '/_layout/tracker'
-    | '/_layout/history/$id'
-  fileRoutesById: FileRoutesById
+    | '/_layout/history/$id';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  LayoutRoute: typeof LayoutRouteWithChildren
+  IndexRoute: typeof IndexRoute;
+  LayoutRoute: typeof LayoutRouteWithChildren;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/_layout': {
-      id: '/_layout'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof LayoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/_layout';
+      path: '';
+      fullPath: '/';
+      preLoaderRoute: typeof LayoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/_layout/tracker': {
-      id: '/_layout/tracker'
-      path: '/tracker'
-      fullPath: '/tracker'
-      preLoaderRoute: typeof LayoutTrackerRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/tracker';
+      path: '/tracker';
+      fullPath: '/tracker';
+      preLoaderRoute: typeof LayoutTrackerRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/_layout/settings': {
-      id: '/_layout/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof LayoutSettingsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/settings';
+      path: '/settings';
+      fullPath: '/settings';
+      preLoaderRoute: typeof LayoutSettingsRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/_layout/history': {
-      id: '/_layout/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof LayoutHistoryRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/history';
+      path: '/history';
+      fullPath: '/history';
+      preLoaderRoute: typeof LayoutHistoryRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/_layout/dashboard': {
-      id: '/_layout/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof LayoutDashboardRouteImport
-      parentRoute: typeof LayoutRoute
-    }
+      id: '/_layout/dashboard';
+      path: '/dashboard';
+      fullPath: '/dashboard';
+      preLoaderRoute: typeof LayoutDashboardRouteImport;
+      parentRoute: typeof LayoutRoute;
+    };
     '/_layout/history/$id': {
-      id: '/_layout/history/$id'
-      path: '/$id'
-      fullPath: '/history/$id'
-      preLoaderRoute: typeof LayoutHistoryIdRouteImport
-      parentRoute: typeof LayoutHistoryRoute
-    }
+      id: '/_layout/history/$id';
+      path: '/$id';
+      fullPath: '/history/$id';
+      preLoaderRoute: typeof LayoutHistoryIdRouteImport;
+      parentRoute: typeof LayoutHistoryRoute;
+    };
   }
 }
 
 interface LayoutHistoryRouteChildren {
-  LayoutHistoryIdRoute: typeof LayoutHistoryIdRoute
+  LayoutHistoryIdRoute: typeof LayoutHistoryIdRoute;
 }
 
 const LayoutHistoryRouteChildren: LayoutHistoryRouteChildren = {
   LayoutHistoryIdRoute: LayoutHistoryIdRoute,
-}
+};
 
 const LayoutHistoryRouteWithChildren = LayoutHistoryRoute._addFileChildren(
   LayoutHistoryRouteChildren,
-)
+);
 
 interface LayoutRouteChildren {
-  LayoutDashboardRoute: typeof LayoutDashboardRoute
-  LayoutHistoryRoute: typeof LayoutHistoryRouteWithChildren
-  LayoutSettingsRoute: typeof LayoutSettingsRoute
-  LayoutTrackerRoute: typeof LayoutTrackerRoute
+  LayoutDashboardRoute: typeof LayoutDashboardRoute;
+  LayoutHistoryRoute: typeof LayoutHistoryRouteWithChildren;
+  LayoutSettingsRoute: typeof LayoutSettingsRoute;
+  LayoutTrackerRoute: typeof LayoutTrackerRoute;
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
@@ -189,15 +177,14 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutHistoryRoute: LayoutHistoryRouteWithChildren,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutTrackerRoute: LayoutTrackerRoute,
-}
+};
 
-const LayoutRouteWithChildren =
-  LayoutRoute._addFileChildren(LayoutRouteChildren)
+const LayoutRouteWithChildren = LayoutRoute._addFileChildren(LayoutRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LayoutRoute: LayoutRouteWithChildren,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();

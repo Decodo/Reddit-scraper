@@ -27,9 +27,7 @@ function DashboardPage() {
     <div className="py-6 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Reddit intelligence, powered by Decodo
-        </p>
+        <p className="text-muted-foreground text-sm mt-1">Reddit intelligence, powered by Decodo</p>
       </div>
 
       {/* CTA */}
@@ -68,9 +66,7 @@ function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Most recent
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Most recent</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -120,11 +116,7 @@ function DashboardPage() {
               <Card key={query._id} className="hover:bg-muted/30 transition-colors">
                 <CardContent className="flex items-center gap-3 py-3">
                   <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <Link
-                    to="/history/$id"
-                    params={{ id: query._id }}
-                    className="flex-1 min-w-0"
-                  >
+                  <Link to="/history/$id" params={{ id: query._id }} className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{query.prompt}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-muted-foreground">
@@ -138,8 +130,7 @@ function DashboardPage() {
                       {query.report?.sentiment?.overall && (
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${
-                            sentimentColor[query.report.sentiment.overall] ??
-                            sentimentColor.neutral
+                            sentimentColor[query.report.sentiment.overall] ?? sentimentColor.neutral
                           }`}
                         >
                           {query.report.sentiment.overall}

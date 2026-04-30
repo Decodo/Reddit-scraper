@@ -105,9 +105,7 @@ describe('LlmService', () => {
   describe('complete()', () => {
     describe('Claude', () => {
       it('routes to Claude when provider=claude and returns correct shape', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ provider: 'claude' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ provider: 'claude' }));
 
         const result = await service.complete({ ...baseRequest, provider: 'claude' });
 
@@ -133,27 +131,21 @@ describe('LlmService', () => {
 
         await service.complete({ ...baseRequest, provider: 'claude' });
 
-        expect(mockAnthropicMessagesCreate.mock.calls[0][0].model).toBe(
-          'claude-sonnet-4-20250514',
-        );
+        expect(mockAnthropicMessagesCreate.mock.calls[0][0].model).toBe('claude-sonnet-4-20250514');
       });
 
       it('throws BadRequestException when anthropicApiKey is missing', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ anthropicApiKey: '' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ anthropicApiKey: '' }));
 
-        await expect(
-          service.complete({ ...baseRequest, provider: 'claude' }),
-        ).rejects.toThrow(BadRequestException);
+        await expect(service.complete({ ...baseRequest, provider: 'claude' })).rejects.toThrow(
+          BadRequestException,
+        );
       });
     });
 
     describe('OpenAI', () => {
       it('routes to OpenAI when provider=openai and returns correct shape', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ provider: 'openai' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ provider: 'openai' }));
 
         const result = await service.complete({ ...baseRequest, provider: 'openai' });
 
@@ -163,9 +155,7 @@ describe('LlmService', () => {
       });
 
       it('sends response_format: json_object when responseFormat is "json"', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ provider: 'openai' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ provider: 'openai' }));
 
         await service.complete({ ...baseRequest, provider: 'openai', responseFormat: 'json' });
 
@@ -174,9 +164,7 @@ describe('LlmService', () => {
       });
 
       it('does not send response_format when responseFormat is not set', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ provider: 'openai' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ provider: 'openai' }));
 
         await service.complete({ ...baseRequest, provider: 'openai' });
 
@@ -185,21 +173,17 @@ describe('LlmService', () => {
       });
 
       it('throws BadRequestException when openaiApiKey is missing', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ openaiApiKey: '' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ openaiApiKey: '' }));
 
-        await expect(
-          service.complete({ ...baseRequest, provider: 'openai' }),
-        ).rejects.toThrow(BadRequestException);
+        await expect(service.complete({ ...baseRequest, provider: 'openai' })).rejects.toThrow(
+          BadRequestException,
+        );
       });
     });
 
     describe('Gemini', () => {
       it('routes to Gemini when provider=gemini and returns correct shape', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ provider: 'gemini' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ provider: 'gemini' }));
 
         const result = await service.complete({ ...baseRequest, provider: 'gemini' });
 
@@ -209,9 +193,7 @@ describe('LlmService', () => {
       });
 
       it('maps assistant role to "model" for Gemini API', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ provider: 'gemini' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ provider: 'gemini' }));
 
         await service.complete({
           provider: 'gemini',
@@ -227,13 +209,11 @@ describe('LlmService', () => {
       });
 
       it('throws BadRequestException when geminiApiKey is missing', async () => {
-        settingsService.getEffectiveConfig.mockResolvedValue(
-          makeConfig({ geminiApiKey: '' }),
-        );
+        settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ geminiApiKey: '' }));
 
-        await expect(
-          service.complete({ ...baseRequest, provider: 'gemini' }),
-        ).rejects.toThrow(BadRequestException);
+        await expect(service.complete({ ...baseRequest, provider: 'gemini' })).rejects.toThrow(
+          BadRequestException,
+        );
       });
     });
 

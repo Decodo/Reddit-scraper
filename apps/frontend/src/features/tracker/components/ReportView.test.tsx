@@ -59,9 +59,7 @@ describe('ReportView', () => {
   it('renders executive summary', () => {
     render(<ReportView {...defaultProps} />);
 
-    expect(
-      screen.getByText('Developers have mixed feelings about AI tools.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Developers have mixed feelings about AI tools.')).toBeInTheDocument();
   });
 
   it('renders all themes', () => {
@@ -106,23 +104,13 @@ describe('ReportView', () => {
   });
 
   it('does not render themes section when themes array is empty', () => {
-    render(
-      <ReportView
-        {...defaultProps}
-        report={{ ...mockReport, themes: [] }}
-      />,
-    );
+    render(<ReportView {...defaultProps} report={{ ...mockReport, themes: [] }} />);
 
     expect(screen.queryByText('Key Themes')).not.toBeInTheDocument();
   });
 
   it('does not render quotes section when notableQuotes is empty', () => {
-    render(
-      <ReportView
-        {...defaultProps}
-        report={{ ...mockReport, notableQuotes: [] }}
-      />,
-    );
+    render(<ReportView {...defaultProps} report={{ ...mockReport, notableQuotes: [] }} />);
 
     expect(screen.queryByText('Notable Quotes')).not.toBeInTheDocument();
   });
@@ -147,12 +135,7 @@ describe('ReportView', () => {
   });
 
   it('does not render the Top Posts section when topPosts is empty', () => {
-    render(
-      <ReportView
-        {...defaultProps}
-        report={{ ...mockReport, topPosts: [] }}
-      />,
-    );
+    render(<ReportView {...defaultProps} report={{ ...mockReport, topPosts: [] }} />);
 
     expect(screen.queryByText('Top Posts')).not.toBeInTheDocument();
   });

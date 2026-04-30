@@ -18,8 +18,7 @@ const deleteQuery = async (id: string): Promise<void> => {
   await api.delete(`/queries/${id}`);
 };
 
-export const useQueriesQuery = () =>
-  useQuery({ queryKey: QUERIES_KEY, queryFn: fetchQueries });
+export const useQueriesQuery = () => useQuery({ queryKey: QUERIES_KEY, queryFn: fetchQueries });
 
 export const useQueryDetailQuery = (id: string) =>
   useQuery({

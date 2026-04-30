@@ -1,12 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -96,8 +90,7 @@ function SettingsPage() {
   const missingLlmKey = !isLoading && status && !llmKeySet;
 
   const isDirty =
-    status !== undefined &&
-    (provider !== status.provider || model !== (status.model ?? ''));
+    status !== undefined && (provider !== status.provider || model !== (status.model ?? ''));
 
   const handleSave = () => {
     updateMutation.mutate(
@@ -114,7 +107,8 @@ function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Choose your LLM provider. API keys are configured via <code className="font-mono">.env</code> on the server.
+          Choose your LLM provider. API keys are configured via{' '}
+          <code className="font-mono">.env</code> on the server.
         </p>
       </div>
 
@@ -162,7 +156,10 @@ function SettingsPage() {
             <Label htmlFor="provider">Provider</Label>
             <Select
               value={provider}
-              onValueChange={(v) => { setProvider(v as Provider); setModel(''); }}
+              onValueChange={(v) => {
+                setProvider(v as Provider);
+                setModel('');
+              }}
               disabled={isLoading}
             >
               <SelectTrigger id="provider" className="w-full sm:w-56">
@@ -199,7 +196,9 @@ function SettingsPage() {
               disabled={isLoading}
               className="w-full sm:max-w-xs"
             />
-            <p className="text-xs text-muted-foreground">Leave blank to use the provider's default model.</p>
+            <p className="text-xs text-muted-foreground">
+              Leave blank to use the provider's default model.
+            </p>
           </div>
 
           <Button
@@ -224,10 +223,26 @@ function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
-          <KeyRow label="Anthropic API key (ANTHROPIC_API_KEY)" isSet={status?.anthropicKeySet} isLoading={isLoading} />
-          <KeyRow label="OpenAI API key (OPENAI_API_KEY)" isSet={status?.openaiKeySet} isLoading={isLoading} />
-          <KeyRow label="Gemini API key (GEMINI_API_KEY)" isSet={status?.geminiKeySet} isLoading={isLoading} />
-          <KeyRow label="Decodo token (DECODO_BASIC_AUTH_TOKEN)" isSet={status?.decodoKeySet} isLoading={isLoading} />
+          <KeyRow
+            label="Anthropic API key (ANTHROPIC_API_KEY)"
+            isSet={status?.anthropicKeySet}
+            isLoading={isLoading}
+          />
+          <KeyRow
+            label="OpenAI API key (OPENAI_API_KEY)"
+            isSet={status?.openaiKeySet}
+            isLoading={isLoading}
+          />
+          <KeyRow
+            label="Gemini API key (GEMINI_API_KEY)"
+            isSet={status?.geminiKeySet}
+            isLoading={isLoading}
+          />
+          <KeyRow
+            label="Decodo token (DECODO_BASIC_AUTH_TOKEN)"
+            isSet={status?.decodoKeySet}
+            isLoading={isLoading}
+          />
         </CardContent>
       </Card>
     </div>

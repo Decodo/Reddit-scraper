@@ -42,8 +42,7 @@ export const PlanReview = ({
   const [timeRange, setTimeRange] = useState<TimeRange>(plan.timeRange);
   const [newSubreddit, setNewSubreddit] = useState('');
 
-  const removeSubreddit = (sub: string) =>
-    setSubreddits((prev) => prev.filter((s) => s !== sub));
+  const removeSubreddit = (sub: string) => setSubreddits((prev) => prev.filter((s) => s !== sub));
 
   const addSubreddit = () => {
     const clean = newSubreddit.trim().replace(/^r\//, '').toLowerCase();
@@ -56,8 +55,7 @@ export const PlanReview = ({
   const updateQuery = (index: number, value: string) =>
     setQueries((prev) => prev.map((q, i) => (i === index ? value : q)));
 
-  const removeQuery = (index: number) =>
-    setQueries((prev) => prev.filter((_, i) => i !== index));
+  const removeQuery = (index: number) => setQueries((prev) => prev.filter((_, i) => i !== index));
 
   const addQuery = () => setQueries((prev) => [...prev, '']);
 
@@ -67,8 +65,7 @@ export const PlanReview = ({
     onAnalyze({ prompt, subreddits, queries: validQueries, timeRange, maxPosts });
   };
 
-  const canSubmit =
-    !isLoading && subreddits.length > 0 && queries.some((q) => q.trim());
+  const canSubmit = !isLoading && subreddits.length > 0 && queries.some((q) => q.trim());
 
   return (
     <div className="space-y-6">
@@ -81,16 +78,10 @@ export const PlanReview = ({
       )}
 
       <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          Subreddits ({subreddits.length})
-        </Label>
+        <Label className="text-sm font-medium">Subreddits ({subreddits.length})</Label>
         <div className="flex flex-wrap gap-2">
           {subreddits.map((sub) => (
-            <Badge
-              key={sub}
-              variant="secondary"
-              className="flex items-center gap-1 pr-1 text-sm"
-            >
+            <Badge key={sub} variant="secondary" className="flex items-center gap-1 pr-1 text-sm">
               r/{sub}
               <button
                 type="button"
@@ -198,12 +189,7 @@ export const PlanReview = ({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <Button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className="flex-1"
-        >
+        <Button type="button" onClick={handleSubmit} disabled={!canSubmit} className="flex-1">
           <Zap className="mr-2 h-4 w-4" />
           {isLoading ? 'Scraping & analyzing…' : 'Run analysis'}
         </Button>

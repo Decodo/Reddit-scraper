@@ -28,8 +28,7 @@ export class ClaudeStrategy implements LlmStrategy {
       { signal },
     );
 
-    const content =
-      response.content[0].type === 'text' ? response.content[0].text : '';
+    const content = response.content[0].type === 'text' ? response.content[0].text : '';
 
     return { content, provider: 'claude', model };
   }

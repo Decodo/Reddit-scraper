@@ -14,9 +14,7 @@ export interface CreateQueryDto {
 
 @Injectable()
 export class QueriesService {
-  constructor(
-    @InjectModel(Query.name) private readonly queryModel: Model<QueryDocument>,
-  ) {}
+  constructor(@InjectModel(Query.name) private readonly queryModel: Model<QueryDocument>) {}
 
   async create(dto: CreateQueryDto): Promise<QueryDocument> {
     const query = new this.queryModel(dto);
@@ -24,11 +22,7 @@ export class QueriesService {
   }
 
   async findAll(): Promise<QueryDocument[]> {
-    return this.queryModel
-      .find()
-      .select('-posts')
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.queryModel.find().select('-posts').sort({ createdAt: -1 }).exec();
   }
 
   async findOne(id: string): Promise<QueryDocument> {

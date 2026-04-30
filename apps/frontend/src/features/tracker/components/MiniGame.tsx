@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 
 const W = 560;
 const H = 130;
@@ -10,9 +10,9 @@ const OBS_W = 22;
 const GRAVITY = 0.55;
 const JUMP_V = -13;
 const BASE_SPEED = 2;
-const OBSTACLE_ORANGE = "#ff4500";
+const OBSTACLE_ORANGE = '#ff4500';
 
-type Status = "idle" | "running" | "dead";
+type Status = 'idle' | 'running' | 'dead';
 interface Obs {
   id: number;
   x: number;
@@ -49,7 +49,7 @@ export const MiniGame = () => {
   const rafRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const g = useRef<GameState>({
-    status: "idle",
+    status: 'idle',
     vy: 0,
     y: FLOOR - CHAR_H,
     obs: [],
@@ -70,7 +70,7 @@ export const MiniGame = () => {
 
     const tick = (ts: number) => {
       const s = g.current;
-      if (s.status !== "running") return;
+      if (s.status !== 'running') return;
 
       const dt = s.lastTs ? Math.min((ts - s.lastTs) / 16.67, 3) : 1;
       s.lastTs = ts;
@@ -92,14 +92,12 @@ export const MiniGame = () => {
         s.nextObs = 180 + Math.random() * 150;
       }
 
-      s.obs = s.obs
-        .map((o) => ({ ...o, x: o.x - s.speed * dt }))
-        .filter((o) => o.x > -OBS_W);
+      s.obs = s.obs.map((o) => ({ ...o, x: o.x - s.speed * dt })).filter((o) => o.x > -OBS_W);
 
       // background parallax elements
       s.nextBg -= s.speed * dt;
       if (s.nextBg <= 0) {
-        const syms = ["▲", "▲", "▼", "◆", "✦"];
+        const syms = ['▲', '▲', '▼', '◆', '✦'];
         s.bgEls.push({
           id: s.bgId++,
           x: W + 20,
@@ -121,7 +119,7 @@ export const MiniGame = () => {
           CHAR_X + 3 < o.x + OBS_W - 2 &&
           s.y + CHAR_H - 8 > FLOOR - o.h // -8 excludes legs from collision box
         ) {
-          s.status = "dead";
+          s.status = 'dead';
           s.score = Math.floor(s.dist / 10);
           redraw();
           return;
@@ -138,9 +136,9 @@ export const MiniGame = () => {
 
   const action = useCallback(() => {
     const s = g.current;
-    if (s.status === "idle" || s.status === "dead") {
+    if (s.status === 'idle' || s.status === 'dead') {
       Object.assign(s, {
-        status: "running",
+        status: 'running',
         vy: JUMP_V,
         y: FLOOR - CHAR_H,
         obs: [],
@@ -161,14 +159,14 @@ export const MiniGame = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space" || e.code === "ArrowUp") {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
         action();
       }
     };
-    window.addEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener('keydown', onKey);
       cancelAnimationFrame(rafRef.current);
     };
   }, [action]);
@@ -188,16 +186,14 @@ export const MiniGame = () => {
   // dot blink: flash orange on a slow irregular cycle (mirrors the real logo animation)
   const dotPhase = frame % 120;
   const dotColor =
-    dotPhase < 3 || (dotPhase >= 6 && dotPhase < 9)
-      ? OBSTACLE_ORANGE
-      : "var(--color-primary)";
+    dotPhase < 3 || (dotPhase >= 6 && dotPhase < 9) ? OBSTACLE_ORANGE : 'var(--color-primary)';
 
   return (
     <div className="flex flex-col items-center gap-2 pt-4">
       <div
         ref={containerRef}
         className="relative w-full cursor-pointer select-none overflow-hidden rounded-lg border border-border bg-muted/20 active:scale-[0.99] transition-transform"
-        style={{ height: H, touchAction: "manipulation" }}
+        style={{ height: H, touchAction: 'manipulation' }}
         onClick={action}
         onTouchStart={(e) => {
           e.preventDefault();
@@ -207,7 +203,7 @@ export const MiniGame = () => {
         tabIndex={0}
         aria-label="Mini game — tap or press space to jump over obstacles"
         onKeyDown={(e) => {
-          if (e.code === "Space" || e.code === "ArrowUp") action();
+          if (e.code === 'Space' || e.code === 'ArrowUp') action();
         }}
       >
         {/* Background parallax symbols */}
@@ -215,15 +211,15 @@ export const MiniGame = () => {
           <div
             key={b.id}
             style={{
-              position: "absolute",
+              position: 'absolute',
               left: b.x,
               top: b.y,
               fontSize: b.size,
               opacity: b.opacity,
               color: OBSTACLE_ORANGE,
               lineHeight: 1,
-              userSelect: "none",
-              pointerEvents: "none",
+              userSelect: 'none',
+              pointerEvents: 'none',
             }}
           >
             {b.sym}
@@ -231,29 +227,26 @@ export const MiniGame = () => {
         ))}
 
         {/* Floor line */}
-        <div
-          className="absolute left-0 right-0 bg-border"
-          style={{ top: FLOOR, height: 1 }}
-        />
+        <div className="absolute left-0 right-0 bg-border" style={{ top: FLOOR, height: 1 }} />
 
         {/* Decodo D character — outer div handles tilt with easing, inner handles squash/stretch */}
         <div
           style={{
-            position: "absolute",
+            position: 'absolute',
             left: CHAR_X,
             top: y,
             width: CHAR_W,
             height: CHAR_H,
-            transformOrigin: "bottom center",
+            transformOrigin: 'bottom center',
             transform: `rotate(${tilt}deg)`,
-            transition: "transform 0.12s ease-out",
+            transition: 'transform 0.12s ease-out',
           }}
         >
           <div
             style={{
               width: CHAR_W,
               height: CHAR_H,
-              transformOrigin: "bottom center",
+              transformOrigin: 'bottom center',
               transform: `scaleX(${scaleX}) scaleY(${scaleY})`,
             }}
           >
@@ -279,7 +272,7 @@ export const MiniGame = () => {
           <div
             key={o.id}
             style={{
-              position: "absolute",
+              position: 'absolute',
               left: o.x,
               top: FLOOR - o.h,
               width: OBS_W,
@@ -288,25 +281,25 @@ export const MiniGame = () => {
           >
             <div
               style={{
-                position: "absolute",
+                position: 'absolute',
                 inset: 0,
                 backgroundColor: OBSTACLE_ORANGE,
                 opacity: 0.85,
-                borderRadius: "5px 5px 0 0",
+                borderRadius: '5px 5px 0 0',
               }}
             />
             {/* Upvote arrow */}
             <div
               style={{
-                position: "absolute",
+                position: 'absolute',
                 top: 5,
-                left: "50%",
-                transform: "translateX(-50%)",
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: 0,
                 height: 0,
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderBottom: "7px solid rgba(255,255,255,0.65)",
+                borderLeft: '6px solid transparent',
+                borderRight: '6px solid transparent',
+                borderBottom: '7px solid rgba(255,255,255,0.65)',
               }}
             />
           </div>
@@ -319,27 +312,21 @@ export const MiniGame = () => {
         </div>
 
         {/* Idle overlay */}
-        {status === "idle" && (
+        {status === 'idle' && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">
-              tap or press space to play
-            </span>
+            <span className="text-xs text-muted-foreground">tap or press space to play</span>
           </div>
         )}
 
         {/* Dead overlay */}
-        {status === "dead" && (
+        {status === 'dead' && (
           <div className="absolute inset-0 flex items-center justify-center gap-4">
             <span className="text-xs font-medium">{score} karma</span>
-            <span className="text-xs text-muted-foreground">
-              tap to try again
-            </span>
+            <span className="text-xs text-muted-foreground">tap to try again</span>
           </div>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        something to do while you wait
-      </p>
+      <p className="text-xs text-muted-foreground">something to do while you wait</p>
     </div>
   );
 };

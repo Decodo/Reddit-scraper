@@ -13,9 +13,7 @@ describe('PromptForm', () => {
     render(<PromptForm onSubmit={onSubmit} isLoading={false} />);
 
     expect(screen.getByRole('textbox')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /analyze reddit/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /analyze reddit/i })).toBeInTheDocument();
   });
 
   it('submit button is disabled when prompt is empty', () => {
@@ -65,9 +63,7 @@ describe('PromptForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
 
     // Fill in subreddits
-    const subredditsInput = screen.getByPlaceholderText(
-      /programming, machineLearning, webdev/i,
-    );
+    const subredditsInput = screen.getByPlaceholderText(/programming, machineLearning, webdev/i);
     fireEvent.change(subredditsInput, {
       target: { value: 'r/Programming, WebDev' },
     });
@@ -113,9 +109,7 @@ describe('PromptForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
 
-    const subredditsInput = screen.getByPlaceholderText(
-      /programming, machineLearning, webdev/i,
-    );
+    const subredditsInput = screen.getByPlaceholderText(/programming, machineLearning, webdev/i);
     fireEvent.change(subredditsInput, { target: { value: 'javascript' } });
 
     const textarea = screen.getByRole('textbox', {
@@ -135,9 +129,7 @@ describe('PromptForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
 
-    const subredditsInput = screen.getByPlaceholderText(
-      /programming, machineLearning, webdev/i,
-    );
+    const subredditsInput = screen.getByPlaceholderText(/programming, machineLearning, webdev/i);
     fireEvent.change(subredditsInput, { target: { value: ' ,programming, , webdev, ' } });
 
     const textarea = screen.getByRole('textbox', {

@@ -108,8 +108,7 @@ describe('DecodoService', () => {
 
       await service.scrape({ target: 'universal', url: 'https://reddit.com' });
 
-      const headers = (fetchSpy.mock.calls[0][1] as RequestInit)
-        .headers as Record<string, string>;
+      const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
       expect(headers['Authorization']).toBe('Basic test-decodo-key');
     });
 
@@ -118,16 +117,12 @@ describe('DecodoService', () => {
 
       await service.scrape({ target: 'universal', url: 'https://reddit.com' });
 
-      const body = JSON.parse(
-        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
-      );
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
       expect(body.locale).toBe('en');
     });
 
     it('throws BadRequestException when decodoApiKey is empty', async () => {
-      settingsService.getEffectiveConfig.mockResolvedValue(
-        makeConfig({ decodoApiKey: '' }),
-      );
+      settingsService.getEffectiveConfig.mockResolvedValue(makeConfig({ decodoApiKey: '' }));
 
       await expect(
         service.scrape({ target: 'universal', url: 'https://reddit.com' }),
@@ -179,9 +174,7 @@ describe('DecodoService', () => {
 
   describe('searchReddit()', () => {
     it('builds URL with encoded query and correct t= timeRange param', async () => {
-      fetchSpy.mockResolvedValue(
-        makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200),
-      );
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200));
 
       await service.searchReddit({ query: 'hello world', timeRange: 'week' });
 
@@ -194,22 +187,21 @@ describe('DecodoService', () => {
     });
 
     it('passes target: universal to Decodo API', async () => {
-      fetchSpy.mockResolvedValue(
-        makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200),
-      );
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200));
 
       await service.searchReddit({ query: 'test', timeRange: 'month' });
 
-      const body = JSON.parse(
-        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
-      );
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
       expect(body.target).toBe('universal');
     });
 
     it('returns parsed posts from data.children', async () => {
       fetchSpy.mockResolvedValue(
         makeDecodoFetch(
-          makePostListingJson([{ id: 'abc', ups: 100 }, { id: 'def', ups: 50 }]),
+          makePostListingJson([
+            { id: 'abc', ups: 100 },
+            { id: 'def', ups: 50 },
+          ]),
           200,
         ),
       );
@@ -299,10 +291,7 @@ describe('DecodoService', () => {
 
     it('returns posts from data.children', async () => {
       fetchSpy.mockResolvedValue(
-        makeDecodoFetch(
-          makePostListingJson([{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]),
-          200,
-        ),
+        makeDecodoFetch(makePostListingJson([{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]), 200),
       );
 
       const posts = await service.scrapeSubreddit({ subreddit: 'javascript' });
@@ -312,15 +301,11 @@ describe('DecodoService', () => {
     });
 
     it('builds URL with subreddit hot feed, uses reddit_subreddit target', async () => {
-      fetchSpy.mockResolvedValue(
-        makeDecodoFetch(makePostListingJson([{ id: 'r1' }]), 200),
-      );
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'r1' }]), 200));
 
       await service.scrapeSubreddit({ subreddit: 'javascript' });
 
-      const body = JSON.parse(
-        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
-      );
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
       expect(body.target).toBe('reddit_subreddit');
       expect(body.url).toContain('/r/javascript');
       expect(body.url).toContain('sort=hot');
@@ -361,9 +346,7 @@ describe('DecodoService', () => {
 
       await service.scrapePost({ subreddit: 'test', postId: 'post1' });
 
-      const body = JSON.parse(
-        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
-      );
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
       expect(body.target).toBe('universal');
     });
 
@@ -380,12 +363,22 @@ describe('DecodoService', () => {
       const postJson = JSON.stringify([
         {
           data: {
-            children: [{
-              data: {
-                id: 'abc123', title: 'T', subreddit: 'test', author: 'u',
-                ups: 1, num_comments: 0, url: '', permalink: '', selftext: '', created_utc: 0,
+            children: [
+              {
+                data: {
+                  id: 'abc123',
+                  title: 'T',
+                  subreddit: 'test',
+                  author: 'u',
+                  ups: 1,
+                  num_comments: 0,
+                  url: '',
+                  permalink: '',
+                  selftext: '',
+                  created_utc: 0,
+                },
               },
-            }],
+            ],
           },
         },
         { data: { children: [] } },
@@ -394,9 +387,7 @@ describe('DecodoService', () => {
 
       await service.scrapePost({ subreddit: 'test', postId: 'abc123' });
 
-      const body = JSON.parse(
-        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
-      );
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
       expect(body.url).toContain('abc123');
     });
 
@@ -404,20 +395,34 @@ describe('DecodoService', () => {
       const postJson = JSON.stringify([
         {
           data: {
-            children: [{
-              data: {
-                id: 'p1', title: 'Post', subreddit: 'test', author: 'user',
-                ups: 10, num_comments: 3, url: '', permalink: '', selftext: '', created_utc: 0,
+            children: [
+              {
+                data: {
+                  id: 'p1',
+                  title: 'Post',
+                  subreddit: 'test',
+                  author: 'user',
+                  ups: 10,
+                  num_comments: 3,
+                  url: '',
+                  permalink: '',
+                  selftext: '',
+                  created_utc: 0,
+                },
               },
-            }],
+            ],
           },
         },
         {
           data: {
             children: [
-              { data: { id: 'c1', author: 'a', body: 'Valid comment', ups: 5, permalink: '/c/c1' } },
+              {
+                data: { id: 'c1', author: 'a', body: 'Valid comment', ups: 5, permalink: '/c/c1' },
+              },
               { data: { id: 'c2', author: 'b', ups: 1, permalink: '/c/c2' } }, // no body
-              { data: { id: 'c3', author: 'c', body: 'Another valid', ups: 2, permalink: '/c/c3' } },
+              {
+                data: { id: 'c3', author: 'c', body: 'Another valid', ups: 2, permalink: '/c/c3' },
+              },
             ],
           },
         },

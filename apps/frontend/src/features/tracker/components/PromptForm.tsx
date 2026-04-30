@@ -45,9 +45,7 @@ export const PromptForm = ({ onSubmit, onCancel, isLoading }: PromptFormProps) =
 
     const maxPostsNum = parseInt(maxPostsInput, 10);
     const maxPosts =
-      !isNaN(maxPostsNum) && maxPostsNum >= 5 && maxPostsNum <= 100
-        ? maxPostsNum
-        : undefined;
+      !isNaN(maxPostsNum) && maxPostsNum >= 5 && maxPostsNum <= 100 ? maxPostsNum : undefined;
 
     onSubmit(prompt.trim(), {
       subreddits: subreddits.length ? subreddits : undefined,

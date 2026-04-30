@@ -1,10 +1,10 @@
-import axios from "axios";
-import { toast } from "sonner";
+import axios from 'axios';
+import { toast } from 'sonner';
 
 export const api = axios.create({
-  baseURL: import.meta.env.PUBLIC_API_BASE_URL || "/api",
+  baseURL: import.meta.env.PUBLIC_API_BASE_URL || '/api',
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
@@ -19,9 +19,9 @@ api.interceptors.response.use(
     }
 
     if (status >= 500) {
-      toast.error(message || "Something went wrong. Please try again.");
+      toast.error(message || 'Something went wrong. Please try again.');
     }
 
     return Promise.reject(error);
-  }
+  },
 );

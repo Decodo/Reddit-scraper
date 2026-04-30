@@ -40,10 +40,7 @@ export class TrackerController {
    * errors arrive as type 'error'.
    */
   @Post('analyze/stream')
-  async analyzePlanStream(
-    @Body() dto: AnalyzePlanDto,
-    @Res() res: Response,
-  ): Promise<void> {
+  async analyzePlanStream(@Body() dto: AnalyzePlanDto, @Res() res: Response): Promise<void> {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -58,7 +55,9 @@ export class TrackerController {
     const ac = new AbortController();
     res.on('close', () => {
       if (ac.signal.aborted) return;
-      this.logger.log(`[Analyze] Client disconnected — cancelling request for prompt: "${dto.prompt}"`);
+      this.logger.log(
+        `[Analyze] Client disconnected — cancelling request for prompt: "${dto.prompt}"`,
+      );
       ac.abort();
     });
 

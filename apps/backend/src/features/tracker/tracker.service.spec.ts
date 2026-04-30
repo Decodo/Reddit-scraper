@@ -226,9 +226,7 @@ describe('TrackerService', () => {
 
       await service.analyzePlan(baseDto);
 
-      const scrapePostCalls = decodoService.scrapePost.mock.calls.map(
-        (call) => call[0].postId,
-      );
+      const scrapePostCalls = decodoService.scrapePost.mock.calls.map((call) => call[0].postId);
 
       // Deep dive should use search post ids, not the high-upvote subreddit posts
       expect(scrapePostCalls).toContain('s1');
@@ -252,9 +250,7 @@ describe('TrackerService', () => {
 
       await service.analyzePlan(baseDto);
 
-      const scrapePostCalls = decodoService.scrapePost.mock.calls.map(
-        (call) => call[0].postId,
-      );
+      const scrapePostCalls = decodoService.scrapePost.mock.calls.map((call) => call[0].postId);
 
       // Falls back to subreddit posts
       expect(scrapePostCalls.length).toBeGreaterThan(0);
