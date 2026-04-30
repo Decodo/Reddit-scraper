@@ -42,23 +42,21 @@ const AnalyzingState = ({ progress, onCancel }: { progress: ProgressState | null
             Cancel
           </Button>
         </div>
-        {progress?.sublabel && (
-          <p className="truncate pl-7 text-xs text-muted-foreground">{progress.sublabel}</p>
-        )}
+        <p className={`truncate pl-7 text-xs text-muted-foreground ${progress?.sublabel ? '' : 'invisible'}`}>
+          {progress?.sublabel ?? '—'}
+        </p>
       </div>
-      {showBar && (
-        <div className="space-y-1">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-              style={{ width: `${(progress.completed / progress.total) * 100}%` }}
-            />
-          </div>
-          <p className="text-right text-xs text-muted-foreground">
-            {Math.round((progress.completed / progress.total) * 100)}%
-          </p>
+      <div className="space-y-1" style={{ visibility: showBar ? 'visible' : 'hidden' }}>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+            style={{ width: `${progress && progress.total > 0 ? (progress.completed / progress.total) * 100 : 0}%` }}
+          />
         </div>
-      )}
+        <p className="text-right text-xs text-muted-foreground">
+          {progress && progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0}%
+        </p>
+      </div>
       <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
           <div

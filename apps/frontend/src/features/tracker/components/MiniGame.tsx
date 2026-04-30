@@ -1,20 +1,31 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from "react";
 
 const W = 560;
 const H = 130;
 const FLOOR = 100;
 const CHAR_X = 50;
-const CHAR_W = 22;
-const CHAR_H = 34; // head(18) + body(10) + legs(6)
+const CHAR_W = 24;
+const CHAR_H = 24;
 const OBS_W = 22;
 const GRAVITY = 0.55;
-const JUMP_V = -12;
+const JUMP_V = -13;
 const BASE_SPEED = 2;
-const REDDIT_ORANGE = '#ff4500';
+const OBSTACLE_ORANGE = "#ff4500";
 
-type Status = 'idle' | 'running' | 'dead';
-interface Obs { id: number; x: number; h: number }
-interface BgEl { id: number; x: number; y: number; sym: string; size: number; opacity: number }
+type Status = "idle" | "running" | "dead";
+interface Obs {
+  id: number;
+  x: number;
+  h: number;
+}
+interface BgEl {
+  id: number;
+  x: number;
+  y: number;
+  sym: string;
+  size: number;
+  opacity: number;
+}
 
 interface GameState {
   status: Status;
@@ -38,7 +49,7 @@ export const MiniGame = () => {
   const rafRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const g = useRef<GameState>({
-    status: 'idle',
+    status: "idle",
     vy: 0,
     y: FLOOR - CHAR_H,
     obs: [],
@@ -59,7 +70,7 @@ export const MiniGame = () => {
 
     const tick = (ts: number) => {
       const s = g.current;
-      if (s.status !== 'running') return;
+      if (s.status !== "running") return;
 
       const dt = s.lastTs ? Math.min((ts - s.lastTs) / 16.67, 3) : 1;
       s.lastTs = ts;
@@ -73,22 +84,22 @@ export const MiniGame = () => {
       // obstacles
       s.dist += s.speed * dt;
       s.nextObs -= s.speed * dt;
-      s.speed = BASE_SPEED + s.dist / 3000;
+      s.speed = BASE_SPEED + s.dist / 5000;
 
       if (s.nextObs <= 0) {
         const spawnX = (containerRef.current?.offsetWidth ?? W) + OBS_W;
-        s.obs.push({ id: s.obsId++, x: spawnX, h: 18 + Math.random() * 28 });
-        s.nextObs = 90 + Math.random() * 90;
+        s.obs.push({ id: s.obsId++, x: spawnX, h: 16 + Math.random() * 18 });
+        s.nextObs = 180 + Math.random() * 150;
       }
 
       s.obs = s.obs
-        .map(o => ({ ...o, x: o.x - s.speed * dt }))
-        .filter(o => o.x > -OBS_W);
+        .map((o) => ({ ...o, x: o.x - s.speed * dt }))
+        .filter((o) => o.x > -OBS_W);
 
       // background parallax elements
       s.nextBg -= s.speed * dt;
       if (s.nextBg <= 0) {
-        const syms = ['▲', '▲', '▼', '◆', '✦'];
+        const syms = ["▲", "▲", "▼", "◆", "✦"];
         s.bgEls.push({
           id: s.bgId++,
           x: W + 20,
@@ -100,8 +111,8 @@ export const MiniGame = () => {
         s.nextBg = 100 + Math.random() * 120;
       }
       s.bgEls = s.bgEls
-        .map(b => ({ ...b, x: b.x - s.speed * 0.35 * dt }))
-        .filter(b => b.x > -30);
+        .map((b) => ({ ...b, x: b.x - s.speed * 0.35 * dt }))
+        .filter((b) => b.x > -30);
 
       // collision (slightly inset for fairness)
       for (const o of s.obs) {
@@ -110,7 +121,7 @@ export const MiniGame = () => {
           CHAR_X + 3 < o.x + OBS_W - 2 &&
           s.y + CHAR_H - 8 > FLOOR - o.h // -8 excludes legs from collision box
         ) {
-          s.status = 'dead';
+          s.status = "dead";
           s.score = Math.floor(s.dist / 10);
           redraw();
           return;
@@ -127,16 +138,16 @@ export const MiniGame = () => {
 
   const action = useCallback(() => {
     const s = g.current;
-    if (s.status === 'idle' || s.status === 'dead') {
+    if (s.status === "idle" || s.status === "dead") {
       Object.assign(s, {
-        status: 'running',
+        status: "running",
         vy: JUMP_V,
         y: FLOOR - CHAR_H,
         obs: [],
         bgEls: [],
         score: 0,
         dist: 0,
-        nextObs: 130,
+        nextObs: 200,
         nextBg: 80,
         speed: BASE_SPEED,
         lastTs: 0,
@@ -150,14 +161,14 @@ export const MiniGame = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
+      if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
         action();
       }
     };
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("keydown", onKey);
       cancelAnimationFrame(rafRef.current);
     };
   }, [action]);
@@ -171,38 +182,48 @@ export const MiniGame = () => {
   const scaleX = onGround ? 1 : vy < -5 ? 0.82 : vy > 5 ? 1.14 : 1;
   const scaleY = onGround ? 1 : vy < -5 ? 1.2 : vy > 5 ? 0.84 : 1;
 
-  // leg swing alternates every 5 frames
-  const legPhase = Math.floor(frame / 5) % 2;
+  // tilt: lean back on jump, forward on fall
+  const tilt = !onGround ? (vy < 0 ? -35 : 20) : 0;
+
+  // dot blink: flash orange on a slow irregular cycle (mirrors the real logo animation)
+  const dotPhase = frame % 120;
+  const dotColor =
+    dotPhase < 3 || (dotPhase >= 6 && dotPhase < 9)
+      ? OBSTACLE_ORANGE
+      : "var(--color-primary)";
 
   return (
     <div className="flex flex-col items-center gap-2 pt-4">
       <div
         ref={containerRef}
         className="relative w-full cursor-pointer select-none overflow-hidden rounded-lg border border-border bg-muted/20 active:scale-[0.99] transition-transform"
-        style={{ height: H, touchAction: 'manipulation' }}
+        style={{ height: H, touchAction: "manipulation" }}
         onClick={action}
-        onTouchStart={(e) => { e.preventDefault(); action(); }}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          action();
+        }}
         role="button"
         tabIndex={0}
-        aria-label="Mini game — tap or press space to jump"
+        aria-label="Mini game — tap or press space to jump over obstacles"
         onKeyDown={(e) => {
-          if (e.code === 'Space' || e.code === 'ArrowUp') action();
+          if (e.code === "Space" || e.code === "ArrowUp") action();
         }}
       >
         {/* Background parallax symbols */}
-        {bgEls.map(b => (
+        {bgEls.map((b) => (
           <div
             key={b.id}
             style={{
-              position: 'absolute',
+              position: "absolute",
               left: b.x,
               top: b.y,
               fontSize: b.size,
               opacity: b.opacity,
-              color: REDDIT_ORANGE,
+              color: OBSTACLE_ORANGE,
               lineHeight: 1,
-              userSelect: 'none',
-              pointerEvents: 'none',
+              userSelect: "none",
+              pointerEvents: "none",
             }}
           >
             {b.sym}
@@ -210,138 +231,115 @@ export const MiniGame = () => {
         ))}
 
         {/* Floor line */}
-        <div className="absolute left-0 right-0 bg-border" style={{ top: FLOOR, height: 1 }} />
+        <div
+          className="absolute left-0 right-0 bg-border"
+          style={{ top: FLOOR, height: 1 }}
+        />
 
-        {/* Snoo character */}
+        {/* Decodo D character — outer div handles tilt with easing, inner handles squash/stretch */}
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: CHAR_X,
             top: y,
             width: CHAR_W,
             height: CHAR_H,
-            transformOrigin: 'bottom center',
-            transform: `scaleX(${scaleX}) scaleY(${scaleY})`,
+            transformOrigin: "bottom center",
+            transform: `rotate(${tilt}deg)`,
+            transition: "transform 0.12s ease-out",
           }}
         >
-          {/* Antenna stick */}
-          <div style={{
-            position: 'absolute', top: -10, left: '50%',
-            transform: 'translateX(-50%)',
-            width: 2, height: 10,
-            backgroundColor: 'var(--color-primary)',
-            borderRadius: 1,
-          }} />
-          {/* Antenna ball — Reddit orange */}
-          <div style={{
-            position: 'absolute', top: -17, left: '50%',
-            transform: 'translateX(-50%)',
-            width: 8, height: 8, borderRadius: '50%',
-            backgroundColor: REDDIT_ORANGE,
-          }} />
-
-          {/* Head */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 18,
-            backgroundColor: '#f0ece6',
-            borderRadius: '8px 8px 3px 3px',
-          }}>
-            {/* Eye */}
-            <div style={{
-              position: 'absolute',
-              width: 5, height: 5, borderRadius: '50%',
-              backgroundColor: REDDIT_ORANGE,
-              top: 6, right: 4,
-            }} />
-            {/* Snout */}
-            <div style={{
-              position: 'absolute',
-              width: 8, height: 5, borderRadius: 3,
-              backgroundColor: '#e0d4c8',
-              bottom: 2, right: 2,
-            }} />
+          <div
+            style={{
+              width: CHAR_W,
+              height: CHAR_H,
+              transformOrigin: "bottom center",
+              transform: `scaleX(${scaleX}) scaleY(${scaleY})`,
+            }}
+          >
+            <svg
+              width={CHAR_W}
+              height={CHAR_H}
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 0H0V12H4V4H10C13.3143 4 16 6.68571 16 10C16 13.3143 13.3143 16 10 16H8V20H10C15.5229 20 20 15.5229 20 10C20 4.47714 15.5229 0 10 0Z"
+                fill="var(--color-primary)"
+              />
+              <path d="M4 16H0V20H4V16Z" fill={dotColor} />
+              <path d="M8 12H4V16H8V12Z" fill={dotColor} />
+            </svg>
           </div>
-
-          {/* Body */}
-          <div style={{
-            position: 'absolute', top: 16, left: 2, right: 2, height: 12,
-            backgroundColor: 'var(--color-primary)',
-            borderRadius: '2px 2px 4px 4px',
-          }} />
-
-          {/* Legs */}
-          <div style={{
-            position: 'absolute', top: 28, left: 2, width: 7, height: 6,
-            backgroundColor: 'var(--color-primary)',
-            borderRadius: '0 0 3px 3px',
-            transform: (status === 'running' && onGround)
-              ? `translateY(${legPhase === 0 ? 0 : -3}px)`
-              : 'none',
-          }} />
-          <div style={{
-            position: 'absolute', top: 28, right: 2, width: 7, height: 6,
-            backgroundColor: 'var(--color-primary)',
-            borderRadius: '0 0 3px 3px',
-            transform: (status === 'running' && onGround)
-              ? `translateY(${legPhase === 1 ? 0 : -3}px)`
-              : 'none',
-          }} />
         </div>
 
-        {/* Obstacles — Reddit upvote pillars */}
-        {obs.map(o => (
+        {/* Obstacles  */}
+        {obs.map((o) => (
           <div
             key={o.id}
             style={{
-              position: 'absolute',
+              position: "absolute",
               left: o.x,
               top: FLOOR - o.h,
               width: OBS_W,
               height: o.h,
             }}
           >
-            <div style={{
-              position: 'absolute', inset: 0,
-              backgroundColor: REDDIT_ORANGE,
-              opacity: 0.85,
-              borderRadius: '5px 5px 0 0',
-            }} />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: OBSTACLE_ORANGE,
+                opacity: 0.85,
+                borderRadius: "5px 5px 0 0",
+              }}
+            />
             {/* Upvote arrow */}
-            <div style={{
-              position: 'absolute', top: 5, left: '50%',
-              transform: 'translateX(-50%)',
-              width: 0, height: 0,
-              borderLeft: '6px solid transparent',
-              borderRight: '6px solid transparent',
-              borderBottom: '7px solid rgba(255,255,255,0.65)',
-            }} />
+            <div
+              style={{
+                position: "absolute",
+                top: 5,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 0,
+                height: 0,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderBottom: "7px solid rgba(255,255,255,0.65)",
+              }}
+            />
           </div>
         ))}
 
         {/* Karma score */}
-        <div
-          className="absolute right-2 top-1.5 font-mono text-xs tabular-nums text-muted-foreground flex items-center gap-1"
-        >
-          <span style={{ color: REDDIT_ORANGE, fontSize: 9 }}>▲</span>
+        <div className="absolute right-2 top-1.5 font-mono text-xs tabular-nums text-muted-foreground flex items-center gap-1">
+          <span style={{ color: OBSTACLE_ORANGE, fontSize: 9 }}>▲</span>
           {score} karma
         </div>
 
         {/* Idle overlay */}
-        {status === 'idle' && (
+        {status === "idle" && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">tap or press space to play</span>
+            <span className="text-xs text-muted-foreground">
+              tap or press space to play
+            </span>
           </div>
         )}
 
         {/* Dead overlay */}
-        {status === 'dead' && (
+        {status === "dead" && (
           <div className="absolute inset-0 flex items-center justify-center gap-4">
             <span className="text-xs font-medium">{score} karma</span>
-            <span className="text-xs text-muted-foreground">tap to try again</span>
+            <span className="text-xs text-muted-foreground">
+              tap to try again
+            </span>
           </div>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">something to do while you wait</p>
+      <p className="text-xs text-muted-foreground">
+        something to do while you wait
+      </p>
     </div>
   );
 };

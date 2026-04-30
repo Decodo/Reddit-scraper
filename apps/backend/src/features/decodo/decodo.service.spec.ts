@@ -311,7 +311,7 @@ describe('DecodoService', () => {
       expect(posts.map((p) => p.id)).toEqual(['r1', 'r2', 'r3']);
     });
 
-    it('builds URL with subreddit name and sort=hot, uses reddit_subreddit target', async () => {
+    it('builds URL with subreddit hot feed, uses reddit_subreddit target', async () => {
       fetchSpy.mockResolvedValue(
         makeDecodoFetch(makePostListingJson([{ id: 'r1' }]), 200),
       );
