@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import Fuse from 'fuse.js';
 import { LlmService } from '../llm/llm.service';
 import { DecodoService } from '../decodo/decodo.service';
 import { QueriesService } from '../queries/queries.service';
@@ -362,22 +363,23 @@ export class TrackerService {
       }
     }
 
-    // Build word stems (first 70% of each significant word) for fuzzy matching.
-    const stems = prompt
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((w) => w.length > 3)
-      .map((w) => w.slice(0, Math.max(4, Math.floor(w.length * 0.7))));
+    const fuse = new Fuse(unique, {
+      keys: ['title', 'selftext'],
+      includeScore: true,
+      threshold: 0.6,
+      ignoreLocation: true,
+    });
 
-    return unique.sort((a, b) => this.relevanceScore(b, stems) - this.relevanceScore(a, stems));
-  }
+    // Fuse score: 0 = perfect match, 1 = no match → invert to relevance ratio
+    const relevanceMap = new Map(fuse.search(prompt).map((r) => [r.item.id, 1 - (r.score ?? 1)]));
 
-  private relevanceScore(post: RedditPost, stems: string[]): number {
-    if (!stems.length) return post.upvotes;
-    const text = `${post.title} ${post.selftext}`.toLowerCase();
-    const matched = stems.filter((s) => text.includes(s)).length;
-    const ratio = matched / stems.length;
-    // Off-topic posts are penalised (× 0.2), on-topic posts get full weight (× 1.0).
-    return Math.log1p(post.upvotes) * (0.2 + 0.8 * ratio);
+    return unique.sort((a, b) => {
+      const relA = relevanceMap.get(a.id) ?? 0;
+      const relB = relevanceMap.get(b.id) ?? 0;
+      // Off-topic posts penalised (× 0.2), on-topic posts get full weight (× 1.0)
+      const scoreA = Math.log1p(a.upvotes) * (0.2 + 0.8 * relA);
+      const scoreB = Math.log1p(b.upvotes) * (0.2 + 0.8 * relB);
+      return scoreB - scoreA;
+    });
   }
 }
