@@ -79,10 +79,7 @@ describe('QueriesService', () => {
     MockModel = buildModelMock();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        QueriesService,
-        { provide: getModelToken(Query.name), useValue: MockModel },
-      ],
+      providers: [QueriesService, { provide: getModelToken(Query.name), useValue: MockModel }],
     }).compile();
 
     service = module.get<QueriesService>(QueriesService);

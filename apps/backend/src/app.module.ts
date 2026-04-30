@@ -5,12 +5,6 @@ import { SettingsModule } from './features/settings/settings.module';
 import { TrackerModule } from './features/tracker/tracker.module';
 
 @Module({
-  imports: [
-    ConfigModule,
-    DatabaseModule,
-    QueriesModule,
-    SettingsModule,
-    TrackerModule,
-  ],
+  imports: [ConfigModule, DatabaseModule, QueriesModule, SettingsModule, TrackerModule],
 })
 export class AppModule {}

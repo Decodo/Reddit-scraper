@@ -1,11 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Download, ExternalLink, FileJson, FileText } from 'lucide-react';
 import type { RedditReport } from '../tracker.types';
@@ -24,12 +19,7 @@ interface ReportViewProps {
   onExportJson: () => void;
 }
 
-export const ReportView = ({
-  prompt,
-  report,
-  onExportMarkdown,
-  onExportJson,
-}: ReportViewProps) => {
+export const ReportView = ({ prompt, report, onExportMarkdown, onExportJson }: ReportViewProps) => {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -61,9 +51,7 @@ export const ReportView = ({
           <CardTitle className="text-base">Executive Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {report.executiveSummary}
-          </p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{report.executiveSummary}</p>
         </CardContent>
       </Card>
 
@@ -115,10 +103,7 @@ export const ReportView = ({
           <h3 className="text-sm font-semibold">Notable Quotes</h3>
           <div className="space-y-2">
             {report.notableQuotes.map((quote, i) => (
-              <blockquote
-                key={i}
-                className="border-l-2 border-border pl-4 py-1"
-              >
+              <blockquote key={i} className="border-l-2 border-border pl-4 py-1">
                 <p className="text-sm text-muted-foreground italic leading-relaxed">
                   "{quote.text}"
                 </p>

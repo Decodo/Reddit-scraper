@@ -37,7 +37,13 @@ export type ProgressState = {
 
 type SseEvent =
   | ProgressEvent
-  | { type: 'complete'; id: string; plan: AnalyzeResult['plan']; posts: AnalyzeResult['posts']; report: AnalyzeResult['report'] }
+  | {
+      type: 'complete';
+      id: string;
+      plan: AnalyzeResult['plan'];
+      posts: AnalyzeResult['posts'];
+      report: AnalyzeResult['report'];
+    }
   | { type: 'error'; message: string };
 
 // ---------------------------------------------------------------------------
@@ -49,14 +55,16 @@ const generatePlan = async (dto: GeneratePlanInput): Promise<ScrapingPlan> => {
   return data;
 };
 
-export const useGeneratePlanMutation = () =>
-  useMutation({ mutationFn: generatePlan });
+export const useGeneratePlanMutation = () => useMutation({ mutationFn: generatePlan });
 
 // ---------------------------------------------------------------------------
 // SSE streaming analyze
 // ---------------------------------------------------------------------------
 
-const BASE_URL = (import.meta.env.PUBLIC_API_BASE_URL as string | undefined ?? '/api').replace(/\/$/, '');
+const BASE_URL = ((import.meta.env.PUBLIC_API_BASE_URL as string | undefined) ?? '/api').replace(
+  /\/$/,
+  '',
+);
 
 async function analyzePlanStream(
   dto: AnalyzePlanInput,
@@ -113,10 +121,7 @@ export function useAnalyzePlanStream() {
   const abortRef = useRef<AbortController | null>(null);
 
   const mutate = useCallback(
-    (
-      dto: AnalyzePlanInput,
-      callbacks: { onSuccess?: (result: AnalyzeResult) => void } = {},
-    ) => {
+    (dto: AnalyzePlanInput, callbacks: { onSuccess?: (result: AnalyzeResult) => void } = {}) => {
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
@@ -138,9 +143,17 @@ export function useAnalyzePlanStream() {
               sublabel: event.label,
             });
           } else if (event.type === 'deep_diving') {
-            setProgress((p) => ({ ...p!, label: `Fetching ${event.posts} comment threads…`, sublabel: undefined }));
+            setProgress((p) => ({
+              ...p!,
+              label: `Fetching ${event.posts} comment threads…`,
+              sublabel: undefined,
+            }));
           } else if (event.type === 'summarizing') {
-            setProgress((p) => ({ ...p!, label: 'Generating report with AI…', sublabel: undefined }));
+            setProgress((p) => ({
+              ...p!,
+              label: 'Generating report with AI…',
+              sublabel: undefined,
+            }));
           } else if (event.type === 'saving') {
             setProgress((p) => ({ ...p!, label: 'Saving to history…', sublabel: undefined }));
           }

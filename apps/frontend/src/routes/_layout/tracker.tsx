@@ -24,9 +24,14 @@ type Step =
   | { stage: 'reviewing'; plan: ScrapingPlan; prompt: string; maxPosts?: number }
   | { stage: 'done'; result: AnalyzeResult; prompt: string };
 
-const AnalyzingState = ({ progress, onCancel }: { progress: ProgressState | null; onCancel: () => void }) => {
-  const showBar =
-    progress !== null && progress.total > 0 && progress.completed < progress.total;
+const AnalyzingState = ({
+  progress,
+  onCancel,
+}: {
+  progress: ProgressState | null;
+  onCancel: () => void;
+}) => {
+  const showBar = progress !== null && progress.total > 0 && progress.completed < progress.total;
 
   return (
     <div className="space-y-5 py-2">
@@ -42,23 +47,28 @@ const AnalyzingState = ({ progress, onCancel }: { progress: ProgressState | null
             Cancel
           </Button>
         </div>
-        {progress?.sublabel && (
-          <p className="truncate pl-7 text-xs text-muted-foreground">{progress.sublabel}</p>
-        )}
+        <p
+          className={`truncate pl-7 text-xs text-muted-foreground ${progress?.sublabel ? '' : 'invisible'}`}
+        >
+          {progress?.sublabel ?? '—'}
+        </p>
       </div>
-      {showBar && (
-        <div className="space-y-1">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-              style={{ width: `${(progress.completed / progress.total) * 100}%` }}
-            />
-          </div>
-          <p className="text-right text-xs text-muted-foreground">
-            {Math.round((progress.completed / progress.total) * 100)}%
-          </p>
+      <div className="space-y-1" style={{ visibility: showBar ? 'visible' : 'hidden' }}>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+            style={{
+              width: `${progress && progress.total > 0 ? (progress.completed / progress.total) * 100 : 0}%`,
+            }}
+          />
         </div>
-      )}
+        <p className="text-right text-xs text-muted-foreground">
+          {progress && progress.total > 0
+            ? Math.round((progress.completed / progress.total) * 100)
+            : 0}
+          %
+        </p>
+      </div>
       <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
           <div
@@ -76,15 +86,13 @@ const AnalyzingState = ({ progress, onCancel }: { progress: ProgressState | null
 };
 
 const getApiError = (error: unknown): string | undefined =>
-  (error as { response?: { data?: { message?: string } } })?.response?.data?.message
-  ?? (error as Error)?.message;
+  (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+  (error as Error)?.message;
 
 const ErrorMessage = ({ message, error }: { message: string; error?: unknown }) => (
   <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive space-y-1">
     <p>{message}</p>
-    {getApiError(error) && (
-      <p className="text-xs opacity-80 font-mono">{getApiError(error)}</p>
-    )}
+    {getApiError(error) && <p className="text-xs opacity-80 font-mono">{getApiError(error)}</p>}
     <p>
       <Link to="/settings" className="underline underline-offset-2 font-medium">
         Check your API key settings.
@@ -174,13 +182,16 @@ function TrackerPage() {
                   isLoading={generatePlan.isPending}
                 />
                 {generatePlan.isError && (
-                  <ErrorMessage message="Failed to generate a scraping plan." error={generatePlan.error} />
+                  <ErrorMessage
+                    message="Failed to generate a scraping plan."
+                    error={generatePlan.error}
+                  />
                 )}
               </>
             )}
 
-            {step.stage === 'reviewing' && (
-              analyzePlan.isPending ? (
+            {step.stage === 'reviewing' &&
+              (analyzePlan.isPending ? (
                 <AnalyzingState progress={analyzePlan.progress} onCancel={analyzePlan.reset} />
               ) : (
                 <>
@@ -196,16 +207,13 @@ function TrackerPage() {
                     <ErrorMessage message="Analysis failed." error={analyzePlan.error} />
                   )}
                 </>
-              )
-            )}
+              ))}
 
             {step.stage === 'done' && (
               <ReportView
                 prompt={step.prompt}
                 report={step.result.report}
-                onExportMarkdown={() =>
-                  exportAsMarkdown(step.prompt, step.result.report)
-                }
+                onExportMarkdown={() => exportAsMarkdown(step.prompt, step.result.report)}
                 onExportJson={() => exportAsJson(step.result)}
               />
             )}

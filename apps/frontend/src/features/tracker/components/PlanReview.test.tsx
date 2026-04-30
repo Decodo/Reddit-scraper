@@ -46,9 +46,7 @@ describe('PlanReview', () => {
   it('renders rationale', () => {
     render(<PlanReview {...defaultProps} />);
 
-    expect(
-      screen.getByText('Relevant subreddits for this topic'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Relevant subreddits for this topic')).toBeInTheDocument();
   });
 
   it('can remove a subreddit', () => {
@@ -70,9 +68,7 @@ describe('PlanReview', () => {
 
     // The add button is the one adjacent to the add input — it's disabled unless input has value.
     // Find the + (Plus icon) button — it's the button that becomes enabled after typing.
-    const addButton = addInput
-      .closest('div')!
-      .querySelector('button') as HTMLButtonElement;
+    const addButton = addInput.closest('div')!.querySelector('button') as HTMLButtonElement;
     fireEvent.click(addButton);
 
     expect(screen.getByText('r/javascript')).toBeInTheDocument();
@@ -84,9 +80,7 @@ describe('PlanReview', () => {
     const addInput = screen.getByPlaceholderText('Add subreddit');
     fireEvent.change(addInput, { target: { value: 'r/node' } });
 
-    const addButton = addInput
-      .closest('div')!
-      .querySelector('button') as HTMLButtonElement;
+    const addButton = addInput.closest('div')!.querySelector('button') as HTMLButtonElement;
     fireEvent.click(addButton);
 
     // The component strips r/ then renders as r/{sub}, so we see r/node
@@ -99,9 +93,7 @@ describe('PlanReview', () => {
     const addInput = screen.getByPlaceholderText('Add subreddit');
     fireEvent.change(addInput, { target: { value: 'programming' } });
 
-    const addButton = addInput
-      .closest('div')!
-      .querySelector('button') as HTMLButtonElement;
+    const addButton = addInput.closest('div')!.querySelector('button') as HTMLButtonElement;
     fireEvent.click(addButton);
 
     const badges = screen.getAllByText('r/programming');
@@ -134,9 +126,7 @@ describe('PlanReview', () => {
     render(<PlanReview {...defaultProps} />);
 
     // Remove both subreddits
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Remove r/programming' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Remove r/programming' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove r/webdev' }));
 
     const runButton = screen.getByRole('button', { name: /run analysis/i });

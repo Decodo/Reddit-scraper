@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useRouterState } from '@tanstack/react-router';
 import {
   Sidebar,
   SidebarContent,
@@ -12,20 +12,20 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+} from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
-} from "@/components/ui/breadcrumb";
-import { Toaster } from "@/components/ui/toaster";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { History, Search, Settings } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+} from '@/components/ui/breadcrumb';
+import { Toaster } from '@/components/ui/toaster';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { History, Search, Settings } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-export const Route = createFileRoute("/_layout")({
+export const Route = createFileRoute('/_layout')({
   component: LayoutComponent,
 });
 
@@ -43,27 +43,27 @@ type NavSection = {
 
 const navigationSections: NavSection[] = [
   {
-    title: "Reddit Intelligence",
+    title: 'Reddit Intelligence',
     items: [
       {
-        title: "Tracker",
-        url: "/tracker",
+        title: 'Tracker',
+        url: '/tracker',
         icon: Search,
         matchExact: true,
       },
       {
-        title: "History",
-        url: "/history",
+        title: 'History',
+        url: '/history',
         icon: History,
       },
     ],
   },
   {
-    title: "Configuration",
+    title: 'Configuration',
     items: [
       {
-        title: "Settings",
-        url: "/settings",
+        title: 'Settings',
+        url: '/settings',
         icon: Settings,
       },
     ],
@@ -102,11 +102,7 @@ const AppSidebar = () => {
               <SidebarMenu>
                 {section.items.map((item) => (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item)}
-                      tooltip={item.title}
-                    >
+                    <SidebarMenuButton asChild isActive={isActive(item)} tooltip={item.title}>
                       <Link to={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>

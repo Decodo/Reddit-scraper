@@ -13,7 +13,7 @@
     "start": "bunx concurrently \"bun run --cwd apps/backend start:prod\" \"bun run --cwd apps/frontend preview\"",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
-    "format": "bun run --cwd apps/backend format"
+    "format": "bun run --cwd apps/backend format && bun run --cwd apps/frontend format"
   },
   "devDependencies": {
     "@types/bun": "latest",

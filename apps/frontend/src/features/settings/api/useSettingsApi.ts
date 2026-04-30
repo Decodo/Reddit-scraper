@@ -27,8 +27,7 @@ const updateSettings = async (input: UpdateProviderInput): Promise<SettingsStatu
   return data;
 };
 
-export const useSettingsQuery = () =>
-  useQuery({ queryKey: SETTINGS_KEY, queryFn: fetchSettings });
+export const useSettingsQuery = () => useQuery({ queryKey: SETTINGS_KEY, queryFn: fetchSettings });
 
 export const useUpdateSettingsMutation = () => {
   const queryClient = useQueryClient();

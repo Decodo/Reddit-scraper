@@ -21,9 +21,9 @@ Analyze the prompt and return a JSON object with exactly this shape:
 }
 
 Rules:
-- subreddits: 3–8 relevant subreddits (names only, no "r/" prefix)
-- queries: 2–5 specific search queries (more targeted than the raw prompt)
-- timeRange: one of "day", "week", "month", "year" — pick based on the topic's recency needs
+- subreddits: 2–5 subreddits where this specific topic is actually discussed. Prefer niche, topic-specific communities over large generic ones (e.g. for Lithuanian drama prefer r/lithuania, r/europe, r/worldcinema over r/drama or r/television). NEVER pick r/drama — it is for internet gossip, not theatrical/film drama.
+- queries: 2–5 search queries. The FIRST query MUST be the user's exact prompt verbatim (or with minimal rephrasing if needed for clarity). Remaining queries may explore related angles. Wrap multi-word phrases in double quotes for exact matching (e.g. "Lithuanian drama").
+- timeRange: one of "day", "week", "month", "year" — pick based on the topic's recency needs. Use "year" or "month" for niche cultural topics where recent results may be sparse.
 - rationale: 1–2 sentences explaining your choices
 - Return ONLY valid JSON, no markdown, no extra text`;
 
@@ -48,7 +48,9 @@ Return a JSON object with exactly this shape:
 }
 
 Rules:
-- themes: 3–5 distinct themes found in the content
-- notableQuotes: 3–6 direct quotes that best represent the discussions
-- topPosts: up to 10 most relevant posts with accurate metadata
+- RELEVANCE FIRST: only include posts and quotes that are directly relevant to the research prompt. Ignore off-topic posts entirely — do not summarize, quote, or list them in topPosts.
+- If the scraped content contains little or no relevant material, say so honestly in the executiveSummary. Do not pad the report with unrelated content.
+- themes: 3–5 distinct themes found in the relevant content only
+- notableQuotes: 3–6 direct quotes that best represent the relevant discussions
+- topPosts: up to 10 most relevant posts with accurate metadata; omit posts that are off-topic
 - Return ONLY valid JSON, no markdown, no extra text`;

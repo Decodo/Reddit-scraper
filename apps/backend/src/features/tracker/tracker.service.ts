@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import Fuse from 'fuse.js';
 import { LlmService } from '../llm/llm.service';
 import { DecodoService } from '../decodo/decodo.service';
 import { QueriesService } from '../queries/queries.service';
-import {
-  SCRAPING_PLAN_PROMPT,
-  SUMMARIZATION_PROMPT,
-} from '../llm/llm.constants';
+import { SCRAPING_PLAN_PROMPT, SUMMARIZATION_PROMPT } from '../llm/llm.constants';
 import type { ScrapingPlan, RedditReport } from '../llm/llm.types';
 import type { RedditPost, RedditPostWithComments } from '../decodo/decodo.types';
 import type { GeneratePlanDto } from './dto/generate-plan.dto';
@@ -51,9 +49,7 @@ export class TrackerService {
       dto.subreddits?.length
         ? `User-specified subreddits (must include these): ${dto.subreddits.join(', ')}`
         : '',
-      dto.timeRange
-        ? `User-specified time range: ${dto.timeRange}`
-        : '',
+      dto.timeRange ? `User-specified time range: ${dto.timeRange}` : '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -66,9 +62,7 @@ export class TrackerService {
       responseFormat: 'json',
     });
 
-    const plan = this.llmService.parseJsonResponse<ScrapingPlan>(
-      response.content,
-    );
+    const plan = this.llmService.parseJsonResponse<ScrapingPlan>(response.content);
 
     // Honour any user overrides
     if (dto.subreddits?.length) {
@@ -83,9 +77,9 @@ export class TrackerService {
 
     this.logger.log(
       `[Plan] ✓ Done in ${Date.now() - t0}ms — ` +
-      `subreddits: [${plan.subreddits.join(', ')}] ` +
-      `queries: ${plan.queries.length} ` +
-      `timeRange: ${plan.timeRange}`,
+        `subreddits: [${plan.subreddits.join(', ')}] ` +
+        `queries: ${plan.queries.length} ` +
+        `timeRange: ${plan.timeRange}`,
     );
     this.logger.log(`[Plan] Rationale: ${plan.rationale}`);
 
@@ -96,7 +90,11 @@ export class TrackerService {
   // Endpoint 2: execute the plan and return a summarized report
   // ---------------------------------------------------------------------------
 
-  async analyzePlan(dto: AnalyzePlanDto, onProgress?: OnProgress, signal?: AbortSignal): Promise<{
+  async analyzePlan(
+    dto: AnalyzePlanDto,
+    onProgress?: OnProgress,
+    signal?: AbortSignal,
+  ): Promise<{
     id: string;
     plan: AnalyzePlanDto;
     posts: RedditPost[];
@@ -108,10 +106,14 @@ export class TrackerService {
     );
 
     // Step 1: parallel scraping (concurrency-capped)
-    this.logger.log(`[Analyze] Step 1/4 — Scraping (${dto.queries.length} searches + ${dto.subreddits.length} subreddit feeds, max ${SCRAPE_CONCURRENCY} concurrent)...`);
+    this.logger.log(
+      `[Analyze] Step 1/4 — Scraping (${dto.queries.length} searches + ${dto.subreddits.length} subreddit feeds, max ${SCRAPE_CONCURRENCY} concurrent)...`,
+    );
     const t1 = Date.now();
     const { posts, searchPostIds } = await this.scrapeAll(dto, onProgress, signal);
-    this.logger.log(`[Analyze] Step 1/4 ✓ — ${posts.length} posts collected in ${Date.now() - t1}ms`);
+    this.logger.log(
+      `[Analyze] Step 1/4 ✓ — ${posts.length} posts collected in ${Date.now() - t1}ms`,
+    );
 
     if (signal?.aborted) throw new Error('Request was cancelled');
 
@@ -120,22 +122,30 @@ export class TrackerService {
     const searchPosts = posts.filter((p) => searchPostIds.has(p.id));
     const deepDiveCandidates = searchPosts.length > 0 ? searchPosts : posts;
     const deepDivePosts = deepDiveCandidates.slice(0, MAX_POSTS_DEEP_DIVE);
-    this.logger.log(`[Analyze] Step 2/4 — Deep-diving ${deepDivePosts.length} top posts for comments...`);
+    this.logger.log(
+      `[Analyze] Step 2/4 — Deep-diving ${deepDivePosts.length} top posts for comments...`,
+    );
     onProgress?.({ type: 'deep_diving', posts: deepDivePosts.length });
     const t2 = Date.now();
     const postsWithComments = await this.deepDive(deepDivePosts, signal);
     const totalComments = postsWithComments.reduce((n, p) => n + p.comments.length, 0);
-    this.logger.log(`[Analyze] Step 2/4 ✓ — ${totalComments} comments fetched in ${Date.now() - t2}ms`);
+    this.logger.log(
+      `[Analyze] Step 2/4 ✓ — ${totalComments} comments fetched in ${Date.now() - t2}ms`,
+    );
 
     if (signal?.aborted) throw new Error('Request was cancelled');
 
     // Step 3: LLM summarization
-    this.logger.log(`[Analyze] Step 3/4 — Sending ${posts.length} posts to LLM for summarization...`);
+    this.logger.log(
+      `[Analyze] Step 3/4 — Sending ${posts.length} posts to LLM for summarization...`,
+    );
     onProgress?.({ type: 'summarizing' });
     const t3 = Date.now();
     const report = await this.summarize(dto.prompt, posts, postsWithComments, signal);
     this.logger.log(`[Analyze] Step 3/4 ✓ — Report generated in ${Date.now() - t3}ms`);
-    this.logger.log(`[Analyze] Report sentiment: ${report.sentiment.overall} | themes: ${report.themes.map((t) => t.title).join(', ')}`);
+    this.logger.log(
+      `[Analyze] Report sentiment: ${report.sentiment.overall} | themes: ${report.themes.map((t) => t.title).join(', ')}`,
+    );
 
     // Step 4: persist to query history
     this.logger.log(`[Analyze] Step 4/4 — Persisting to MongoDB...`);
@@ -162,25 +172,44 @@ export class TrackerService {
   // Internals
   // ---------------------------------------------------------------------------
 
-  private async scrapeAll(dto: AnalyzePlanDto, onProgress?: OnProgress, signal?: AbortSignal): Promise<{
+  private async scrapeAll(
+    dto: AnalyzePlanDto,
+    onProgress?: OnProgress,
+    signal?: AbortSignal,
+  ): Promise<{
     posts: RedditPost[];
     searchPostIds: Set<string>;
   }> {
-    const totalTasks = dto.queries.length + dto.subreddits.length;
+    // Always search the verbatim prompt — LLM-generated queries may paraphrase it
+    const allQueries = [...new Set([dto.prompt, ...dto.queries])];
+
+    const totalTasks = allQueries.length + dto.subreddits.length;
     let completedTasks = 0;
 
-    onProgress?.({ type: 'started', totalTasks, queries: dto.queries.length, subreddits: dto.subreddits.length });
+    onProgress?.({
+      type: 'started',
+      totalTasks,
+      queries: allQueries.length,
+      subreddits: dto.subreddits.length,
+    });
 
-    const searchTasks: (() => Promise<RedditPost[]>)[] = dto.queries.map(
-      (query) => async () => {
+    const searchTasks: (() => Promise<RedditPost[]>)[] = allQueries.map(
+      (query, index) => async () => {
+        // Verbatim prompt (index 0) always searches 'year' to catch older niche content
+        const timeRange = index === 0 ? 'year' : dto.timeRange;
         const result = await this.decodoService
-          .searchReddit({ query, timeRange: dto.timeRange }, signal)
+          .searchReddit({ query, timeRange }, signal)
           .catch((err: unknown) => {
             if ((err as Error)?.name === 'AbortError') throw err;
             this.logger.warn(`Search query failed for "${query}": ${String(err)}`);
             return [] as RedditPost[];
           });
-        onProgress?.({ type: 'task_complete', completed: ++completedTasks, total: totalTasks, label: `search: "${query}"` });
+        onProgress?.({
+          type: 'task_complete',
+          completed: ++completedTasks,
+          total: totalTasks,
+          label: `search: "${query}"`,
+        });
         return result;
       },
     );
@@ -194,7 +223,12 @@ export class TrackerService {
             this.logger.warn(`Subreddit scrape failed for r/${subreddit}: ${String(err)}`);
             return [] as RedditPost[];
           });
-        onProgress?.({ type: 'task_complete', completed: ++completedTasks, total: totalTasks, label: `r/${subreddit}` });
+        onProgress?.({
+          type: 'task_complete',
+          completed: ++completedTasks,
+          total: totalTasks,
+          label: `r/${subreddit}`,
+        });
         return result;
       },
     );
@@ -202,18 +236,21 @@ export class TrackerService {
     const allTasks = [...searchTasks, ...subredditTasks];
     const results = await TrackerService.runWithConcurrency(allTasks, SCRAPE_CONCURRENCY);
 
-    const searchResults = results.slice(0, searchTasks.length).flat();
-    const subredditResults = results.slice(searchTasks.length).flat();
+    const searchResults = results.slice(0, allQueries.length).flat();
+    const subredditResults = results.slice(allQueries.length).flat();
 
     // IDs of search-result posts — used to prioritize deep-dive selection
     const searchPostIds = new Set(searchResults.map((p) => p.id).filter(Boolean));
 
     const all = [...searchResults, ...subredditResults];
-    const ranked = this.deduplicateAndRank(all).slice(0, dto.maxPosts ?? MAX_POSTS_TOTAL);
+    const ranked = this.deduplicateAndRank(all, dto.prompt).slice(
+      0,
+      dto.maxPosts ?? MAX_POSTS_TOTAL,
+    );
 
     this.logger.log(
       `[Scrape] Search: ${searchResults.length} | Subreddits: ${subredditResults.length}` +
-      ` → dedup+rank: ${ranked.length} (top: "${ranked[0]?.title?.slice(0, 60) ?? 'none'}")`,
+        ` → dedup+rank: ${ranked.length} (top: "${ranked[0]?.title?.slice(0, 60) ?? 'none'}")`,
     );
 
     return { posts: ranked, searchPostIds };
@@ -234,10 +271,7 @@ export class TrackerService {
       }
     };
 
-    const workers = Array.from(
-      { length: Math.min(concurrency, tasks.length) },
-      () => worker(),
-    );
+    const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
     await Promise.all(workers);
     return results;
   }
@@ -251,9 +285,7 @@ export class TrackerService {
         .scrapePost({ subreddit: post.subreddit, postId: post.id }, signal)
         .catch((err: unknown) => {
           if ((err as Error)?.name === 'AbortError') throw err;
-          this.logger.warn(
-            `Comment scrape failed for post ${post.id}: ${String(err)}`,
-          );
+          this.logger.warn(`Comment scrape failed for post ${post.id}: ${String(err)}`);
           return { ...post, comments: [] };
         }),
     );
@@ -276,13 +308,16 @@ export class TrackerService {
       contentSummary,
     ].join('\n');
 
-    const response = await this.llmService.complete({
-      messages: [
-        { role: 'user', content: SUMMARIZATION_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      responseFormat: 'json',
-    }, signal);
+    const response = await this.llmService.complete(
+      {
+        messages: [
+          { role: 'user', content: SUMMARIZATION_PROMPT },
+          { role: 'user', content: userMessage },
+        ],
+        responseFormat: 'json',
+      },
+      signal,
+    );
 
     return this.llmService.parseJsonResponse<RedditReport>(response.content);
   }
@@ -306,9 +341,9 @@ export class TrackerService {
         if (withComments?.comments.length) {
           lines.push(
             'Top comments:',
-            ...withComments.comments.slice(0, 5).map(
-              (c) => `  - [${c.upvotes} upvotes] ${c.body.slice(0, 300)}`,
-            ),
+            ...withComments.comments
+              .slice(0, 5)
+              .map((c) => `  - [${c.upvotes} upvotes] ${c.body.slice(0, 300)}`),
           );
         }
 
@@ -317,7 +352,7 @@ export class TrackerService {
       .join('\n\n---\n\n');
   }
 
-  private deduplicateAndRank(posts: RedditPost[]): RedditPost[] {
+  private deduplicateAndRank(posts: RedditPost[], prompt: string): RedditPost[] {
     const seen = new Set<string>();
     const unique: RedditPost[] = [];
 
@@ -328,6 +363,23 @@ export class TrackerService {
       }
     }
 
-    return unique.sort((a, b) => b.upvotes - a.upvotes);
+    const fuse = new Fuse(unique, {
+      keys: ['title', 'selftext'],
+      includeScore: true,
+      threshold: 0.6,
+      ignoreLocation: true,
+    });
+
+    // Fuse score: 0 = perfect match, 1 = no match → invert to relevance ratio
+    const relevanceMap = new Map(fuse.search(prompt).map((r) => [r.item.id, 1 - (r.score ?? 1)]));
+
+    return unique.sort((a, b) => {
+      const relA = relevanceMap.get(a.id) ?? 0;
+      const relB = relevanceMap.get(b.id) ?? 0;
+      // Off-topic posts penalised (× 0.2), on-topic posts get full weight (× 1.0)
+      const scoreA = Math.log1p(a.upvotes) * (0.2 + 0.8 * relA);
+      const scoreB = Math.log1p(b.upvotes) * (0.2 + 0.8 * relB);
+      return scoreB - scoreA;
+    });
   }
 }

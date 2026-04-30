@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "rsbuild dev",
     "build": "tsc --noEmit && rsbuild build",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "lint": "eslint .",
     "preview": "rsbuild preview",
     "test": "vitest run",
@@ -41,25 +42,28 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.5.2",
-    "@vitejs/plugin-react": "^4.3.4",
-    "jsdom": "^26.1.0",
-    "vitest": "^3.2.4",
     "@rsbuild/core": "^1.6.12",
     "@rsbuild/plugin-react": "^1.4.2",
     "@tailwindcss/postcss": "^4.1.17",
     "@tanstack/router-plugin": "^1.139.14",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.8.3",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.4"
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^3.2.4"
   }
 }

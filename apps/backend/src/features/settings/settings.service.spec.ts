@@ -127,7 +127,13 @@ describe('SettingsService', () => {
 
     it('returns all key flags false when no env keys are set', async () => {
       const emptyConfig = {
-        llm: { provider: 'claude', model: '', anthropicApiKey: '', openaiApiKey: '', geminiApiKey: '' },
+        llm: {
+          provider: 'claude',
+          model: '',
+          anthropicApiKey: '',
+          openaiApiKey: '',
+          geminiApiKey: '',
+        },
         decodo: { apiKey: '' },
       };
       const { service } = await makeService(null, emptyConfig);
