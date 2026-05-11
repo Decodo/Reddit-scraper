@@ -44,6 +44,8 @@ export interface ScrapeSearchParams {
   query: string;
   timeRange: RedditTimeRange;
   limit?: number;
+  /** Restrict search to these subreddits via Reddit's `subreddit:` operator */
+  subreddits?: string[];
 }
 
 export interface ScrapeSubredditParams {

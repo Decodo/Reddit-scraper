@@ -89,17 +89,25 @@ const getApiError = (error: unknown): string | undefined =>
   (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   (error as Error)?.message;
 
-const ErrorMessage = ({ message, error }: { message: string; error?: unknown }) => (
-  <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive space-y-1">
-    <p>{message}</p>
-    {getApiError(error) && <p className="text-xs opacity-80 font-mono">{getApiError(error)}</p>}
-    <p>
-      <Link to="/settings" className="underline underline-offset-2 font-medium">
-        Check your API key settings.
-      </Link>
-    </p>
-  </div>
-);
+const isApiKeyLikely = (msg: string | undefined): boolean =>
+  !!msg && /api[_ -]?key|unauthori[sz]ed|forbidden|401|403/i.test(msg);
+
+const ErrorMessage = ({ message, error }: { message: string; error?: unknown }) => {
+  const apiMessage = getApiError(error);
+  return (
+    <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive space-y-1">
+      <p className="font-medium">{apiMessage ?? message}</p>
+      {apiMessage && <p className="opacity-80">{message}</p>}
+      {isApiKeyLikely(apiMessage) && (
+        <p>
+          <Link to="/settings" className="underline underline-offset-2 font-medium">
+            Check your API key settings.
+          </Link>
+        </p>
+      )}
+    </div>
+  );
+};
 
 function TrackerPage() {
   const [step, setStep] = useState<Step>({ stage: 'input' });

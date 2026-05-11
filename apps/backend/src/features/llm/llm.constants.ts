@@ -21,7 +21,7 @@ Analyze the prompt and return a JSON object with exactly this shape:
 }
 
 Rules:
-- subreddits: 2–5 subreddits where this specific topic is actually discussed. Prefer niche, topic-specific communities over large generic ones (e.g. for Lithuanian drama prefer r/lithuania, r/europe, r/worldcinema over r/drama or r/television). NEVER pick r/drama — it is for internet gossip, not theatrical/film drama.
+- subreddits: 2–5 subreddits where this specific topic is actually discussed. Use bare names WITHOUT the "r/" prefix (e.g. "lithuania", not "r/lithuania"). Prefer niche, topic-specific communities over large generic ones (e.g. for Lithuanian drama prefer "lithuania", "europe", "worldcinema" over "drama" or "television"). NEVER pick "drama" — that subreddit is for internet gossip, not theatrical/film drama.
 - queries: 2–5 search queries. The FIRST query MUST be the user's exact prompt verbatim (or with minimal rephrasing if needed for clarity). Remaining queries may explore related angles. Wrap multi-word phrases in double quotes for exact matching (e.g. "Lithuanian drama").
 - timeRange: one of "day", "week", "month", "year" — pick based on the topic's recency needs. Use "year" or "month" for niche cultural topics where recent results may be sparse.
 - rationale: 1–2 sentences explaining your choices

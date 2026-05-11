@@ -28,7 +28,6 @@
     "@platform/shared": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
-    "fuse.js": "^7.3.0",
     "mongoose": "^8.9.5",
     "openai": "^6.34.0",
     "reflect-metadata": "^0.2.2",
