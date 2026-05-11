@@ -20,14 +20,16 @@ An open-source Reddit intelligence tool powered by the [Decodo Scraping API](htt
 - A **Decodo API key** — sign up at [decodo.com](https://dashboard.decodo.com/register?page=scrapers/pricing)
 - At least one LLM API key: **Anthropic**, **OpenAI**, or **Google Gemini**
 
+- **Just installed Bun?** Open a new terminal (or run `source ~/.zshrc` on zsh / `source ~/.bashrc` on bash) so the `bun` command is on your PATH before running `bun install`.
+
 ---
 
 ## Quick Start
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/decodo/decodo-reddit-tracker
-cd decodo-reddit-tracker
+git clone https://github.com/Decodo/Reddit-tracker
+cd reddit-tracker
 bun install
 
 # 2. Configure environment
