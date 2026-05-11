@@ -1,7 +1,7 @@
-import { defineConfig } from "@rsbuild/core";
-import { pluginReact } from "@rsbuild/plugin-react";
-import { tanstackRouter } from "@tanstack/router-plugin/rspack";
-import path from "path";
+import { defineConfig } from '@rsbuild/core';
+import { pluginReact } from '@rsbuild/plugin-react';
+import { tanstackRouter } from '@tanstack/router-plugin/rspack';
+import path from 'path';
 
 export default defineConfig({
   plugins: [pluginReact()],
@@ -10,20 +10,20 @@ export default defineConfig({
     rspack: {
       resolve: {
         modules: [
-          path.resolve(__dirname, "node_modules"),
-          path.resolve(__dirname, "../../node_modules"),
-          "node_modules",
+          path.resolve(__dirname, 'node_modules'),
+          path.resolve(__dirname, '../../node_modules'),
+          'node_modules',
         ],
         alias: {
-          "lucide-react": path.resolve(
+          'lucide-react': path.resolve(
             __dirname,
-            "../../node_modules/lucide-react/dist/esm/lucide-react.js"
+            '../../node_modules/lucide-react/dist/esm/lucide-react.js',
           ),
         },
       },
       plugins: [
         tanstackRouter({
-          target: "react",
+          target: 'react',
           autoCodeSplitting: true,
         }),
       ],
@@ -32,56 +32,56 @@ export default defineConfig({
 
   source: {
     entry: {
-      index: "./src/main.tsx",
+      index: './src/main.tsx',
     },
   },
 
   resolve: {
     alias: {
-      "@": "./src",
+      '@': './src',
     },
   },
 
   html: {
-    template: "./index.html",
+    template: './index.html',
   },
 
   server: {
     port: 5274,
-    host: "127.0.0.1",
+    host: '127.0.0.1',
     strictPort: false,
     htmlFallback: false,
     historyApiFallback: true,
     proxy: {
-      "/api": {
-        target: process.env.PUBLIC_API_BASE_URL ?? "http://localhost:5002",
+      '/api': {
+        target: process.env.PUBLIC_API_BASE_URL ?? 'http://localhost:5002',
         changeOrigin: true,
-        pathRewrite: { "^/api": "" },
+        pathRewrite: { '^/api': '' },
       },
     },
   },
 
   output: {
     distPath: {
-      root: "dist",
+      root: 'dist',
     },
     sourceMap: {
-      js: "source-map",
+      js: 'source-map',
       css: true,
     },
-    target: "web",
+    target: 'web',
   },
 
   performance: {
     chunkSplit: {
-      strategy: "split-by-experience",
+      strategy: 'split-by-experience',
       override: {
-        chunks: "all",
+        chunks: 'all',
         cacheGroups: {
-          "react-vendor": {
+          'react-vendor': {
             test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-            name: "react-vendor",
-            chunks: "all",
+            name: 'react-vendor',
+            chunks: 'all',
           },
         },
       },
