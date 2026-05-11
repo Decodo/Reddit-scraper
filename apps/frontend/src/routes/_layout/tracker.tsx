@@ -157,7 +157,7 @@ function TrackerPage() {
 
   const cardTitle = {
     input: 'What would you like to research?',
-    reviewing: analyzePlan.isPending ? 'Analyzing…' : 'Adjust the scraping plan',
+    reviewing: analyzePlan.isPending ? 'Analyzing…' : 'Your scraping plan',
     done: 'Report',
   }[step.stage];
 
