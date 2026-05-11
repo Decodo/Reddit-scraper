@@ -117,6 +117,7 @@ export function useAnalyzePlanStream() {
   const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -128,6 +129,7 @@ export function useAnalyzePlanStream() {
 
       setIsPending(true);
       setIsError(false);
+      setError(null);
       setProgress({ completed: 0, total: 0, label: 'Connecting…' });
 
       analyzePlanStream(
@@ -167,6 +169,7 @@ export function useAnalyzePlanStream() {
         })
         .catch((err: unknown) => {
           if (err instanceof Error && err.name === 'AbortError') return;
+          setError(err instanceof Error ? err : new Error(String(err)));
           setIsError(true);
           setIsPending(false);
         });
@@ -179,8 +182,9 @@ export function useAnalyzePlanStream() {
     abortRef.current = null;
     setIsPending(false);
     setIsError(false);
+    setError(null);
     setProgress(null);
   }, []);
 
-  return { mutate, isPending, isError, progress, reset };
+  return { mutate, isPending, isError, error, progress, reset };
 }

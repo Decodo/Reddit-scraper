@@ -18,6 +18,10 @@ api.interceptors.response.use(
       toast.error(message || "You don't have permission to perform this action");
     }
 
+    if (status === 429) {
+      toast.error(message || 'Rate limit reached. Please wait a moment and try again.');
+    }
+
     if (status >= 500) {
       toast.error(message || 'Something went wrong. Please try again.');
     }

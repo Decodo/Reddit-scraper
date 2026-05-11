@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   BadRequestException,
+  HttpException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
@@ -16,6 +17,13 @@ import type {
   ScrapeSubredditParams,
   ScrapePostParams,
 } from './decodo.types';
+
+// Strips "/r/", "r/", and surrounding whitespace from a subreddit name.
+// LLM plan output occasionally includes the "r/" prefix; without this,
+// URLs like /r/r/foo.json end up 404ing.
+function normalizeSubreddit(name: string): string {
+  return name.trim().replace(/^\/?r\//i, '');
+}
 
 @Injectable()
 export class DecodoService {
@@ -53,9 +61,13 @@ export class DecodoService {
     });
 
     if (!response.ok) {
-      throw new ServiceUnavailableException(
-        `Decodo API error: ${response.status} ${response.statusText}`,
-      );
+      const message = `Decodo API error: ${response.status} ${response.statusText}`;
+      // Preserve 429 so callers can distinguish rate-limiting from other failures
+      // and surface a more accurate error to the user.
+      if (response.status === 429) {
+        throw new HttpException(message, 429);
+      }
+      throw new ServiceUnavailableException(message);
     }
 
     // Decodo v2 response: { results: [{ content, status_code, ... }] }
@@ -94,8 +106,18 @@ export class DecodoService {
   // ---------------------------------------------------------------------------
 
   async searchReddit(params: ScrapeSearchParams, signal?: AbortSignal): Promise<RedditPost[]> {
-    const { query, timeRange, limit = 25 } = params;
-    const encodedQuery = encodeURIComponent(query);
+    const { query, timeRange, limit = 25, subreddits } = params;
+
+    // When subreddits are provided, use Reddit's `subreddit:` operator to scope
+    // the search. Without this, "react" matches r/AITAH/r/cats posts that
+    // happen to contain "react"/"reacts"/"reaction" — viral drama drowns out
+    // actual programming discussion.
+    const normalizedSubs = subreddits?.map(normalizeSubreddit).filter(Boolean);
+    const finalQuery = normalizedSubs?.length
+      ? `${query} (${normalizedSubs.map((s) => `subreddit:${s}`).join(' OR ')})`
+      : query;
+
+    const encodedQuery = encodeURIComponent(finalQuery);
     const url = `https://www.reddit.com/search.json?q=${encodedQuery}&sort=relevance&t=${timeRange}&limit=${limit}`;
 
     const result = await this.scrape({ target: 'universal', url }, signal);
@@ -110,7 +132,8 @@ export class DecodoService {
     params: ScrapeSubredditParams,
     signal?: AbortSignal,
   ): Promise<RedditPost[]> {
-    const { subreddit, limit = 25 } = params;
+    const { limit = 25 } = params;
+    const subreddit = normalizeSubreddit(params.subreddit);
     const url = `https://www.reddit.com/r/${subreddit}.json?sort=hot&limit=${limit}`;
 
     const result = await this.scrape({ target: 'reddit_subreddit', url }, signal);
@@ -125,7 +148,8 @@ export class DecodoService {
     params: ScrapePostParams,
     signal?: AbortSignal,
   ): Promise<RedditPostWithComments> {
-    const { subreddit, postId } = params;
+    const { postId } = params;
+    const subreddit = normalizeSubreddit(params.subreddit);
     const url = `https://www.reddit.com/r/${subreddit}/comments/${postId}.json`;
 
     // Use universal target: reddit_post returns 404 for .json URLs;

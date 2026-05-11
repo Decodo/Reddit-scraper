@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { HttpException } from '@nestjs/common';
 import { TrackerService } from './tracker.service';
 import { LlmService } from '../llm/llm.service';
 import { DecodoService } from '../decodo/decodo.service';
@@ -168,16 +169,21 @@ describe('TrackerService', () => {
 
       await service.analyzePlan(baseDto);
 
-      expect(decodoService.searchReddit).toHaveBeenCalledTimes(1);
+      // The verbatim prompt is always prepended to the query list, so
+      // searchReddit is called once per query + once for the prompt itself.
+      expect(decodoService.searchReddit).toHaveBeenCalledTimes(2);
       expect(decodoService.searchReddit).toHaveBeenCalledWith(
         expect.objectContaining({ query: 'react performance tips' }),
+        undefined,
       );
       expect(decodoService.scrapeSubreddit).toHaveBeenCalledTimes(2);
       expect(decodoService.scrapeSubreddit).toHaveBeenCalledWith(
         expect.objectContaining({ subreddit: 'reactjs' }),
+        undefined,
       );
       expect(decodoService.scrapeSubreddit).toHaveBeenCalledWith(
         expect.objectContaining({ subreddit: 'webdev' }),
+        undefined,
       );
     });
 
@@ -354,6 +360,85 @@ describe('TrackerService', () => {
       );
     });
 
+    it('passes plan subreddits to searchReddit for `subreddit:` scoping', async () => {
+      llmService.parseJsonResponse.mockReturnValue(mockReport);
+      decodoService.searchReddit.mockResolvedValue([makePost('s1', 10, 'reactjs')]);
+      decodoService.scrapeSubreddit.mockResolvedValue([]);
+
+      await service.analyzePlan(baseDto);
+
+      expect(decodoService.searchReddit).toHaveBeenCalledWith(
+        expect.objectContaining({ subreddits: baseDto.subreddits }),
+        undefined,
+      );
+    });
+
+    it('drops off-plan posts from ranking when on-plan posts exist', async () => {
+      llmService.parseJsonResponse.mockReturnValue(mockReport);
+
+      // Drama post has massive upvotes; would win pre-fix
+      const dramaPost = makePost('drama', 80000, 'AITAH');
+      const onPlanPost = makePost('react1', 300, 'reactjs');
+
+      decodoService.searchReddit.mockResolvedValue([dramaPost, onPlanPost]);
+      decodoService.scrapeSubreddit.mockResolvedValue([]);
+      decodoService.scrapePost.mockResolvedValue({ ...onPlanPost, comments: [] });
+
+      const result = await service.analyzePlan(baseDto);
+
+      const ids = result.posts.map((p) => p.id);
+      expect(ids).toContain('react1');
+      expect(ids).not.toContain('drama');
+    });
+
+    it('falls back to off-plan posts when no on-plan posts came back', async () => {
+      llmService.parseJsonResponse.mockReturnValue(mockReport);
+
+      // All posts are off-plan — fallback must keep them rather than return zero
+      const offPlan1 = makePost('o1', 100, 'cats');
+      const offPlan2 = makePost('o2', 200, 'AITAH');
+
+      decodoService.searchReddit.mockResolvedValue([offPlan1, offPlan2]);
+      decodoService.scrapeSubreddit.mockResolvedValue([]);
+      decodoService.scrapePost.mockResolvedValue({ ...offPlan1, comments: [] });
+
+      const result = await service.analyzePlan(baseDto);
+
+      expect(result.posts.length).toBeGreaterThan(0);
+    });
+
+    it('throws HttpException 429 when all scrapes hit Decodo rate limit', async () => {
+      llmService.parseJsonResponse.mockReturnValue(mockReport);
+
+      const rateLimitErr = new HttpException('Decodo API error: 429 Too Many Requests', 429);
+      decodoService.searchReddit.mockRejectedValue(rateLimitErr);
+      decodoService.scrapeSubreddit.mockRejectedValue(rateLimitErr);
+
+      await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 429 });
+      // LLM must not be called when scraping wiped out
+      expect(llmService.complete).not.toHaveBeenCalled();
+    });
+
+    it('throws HttpException 502 when all scrapes fail for non-429 reasons', async () => {
+      llmService.parseJsonResponse.mockReturnValue(mockReport);
+
+      const genericErr = new Error('Network timeout');
+      decodoService.searchReddit.mockRejectedValue(genericErr);
+      decodoService.scrapeSubreddit.mockRejectedValue(genericErr);
+
+      await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 502 });
+    });
+
+    it('throws HttpException 404 when scrapes succeed but return zero posts', async () => {
+      llmService.parseJsonResponse.mockReturnValue(mockReport);
+
+      // No failures, but every target returned an empty list
+      decodoService.searchReddit.mockResolvedValue([]);
+      decodoService.scrapeSubreddit.mockResolvedValue([]);
+
+      await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 404 });
+    });
+
     it('handles individual scraping errors gracefully and continues with partial results', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
@@ -411,8 +496,10 @@ describe('TrackerService', () => {
         timeRange: 'week',
       };
 
-      // Total tasks = 5 queries + 5 subreddits = 10
-      await service.analyzePlan(dto);
+      // Total tasks = 5 queries + 5 subreddits = 10. All tasks resolve to [],
+      // so analyzePlan throws 404 after scrapeAll — we only care about the
+      // peak concurrency observed during scrapeAll, not the final outcome.
+      await expect(service.analyzePlan(dto)).rejects.toThrow();
 
       expect(maxConcurrency).toBeLessThanOrEqual(4);
     });

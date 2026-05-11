@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import Fuse from 'fuse.js';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { LlmService } from '../llm/llm.service';
 import { DecodoService } from '../decodo/decodo.service';
 import { QueriesService } from '../queries/queries.service';
@@ -12,6 +11,106 @@ import type { AnalyzePlanDto } from './dto/analyze-plan.dto';
 const MAX_POSTS_TOTAL = 30;
 const MAX_POSTS_DEEP_DIVE = 8;
 const SCRAPE_CONCURRENCY = 4; // max simultaneous Decodo requests to avoid 429s
+
+// LLM plan output sometimes wraps subreddit names with "r/" — normalize so
+// downstream URLs and `subreddit:` search clauses don't end up malformed.
+function normalizeSubreddit(name: string): string {
+  return name.trim().replace(/^\/?r\//i, '');
+}
+
+// Small stop-word filter for tokenization. Keep it minimal — we want to drop
+// noise like "the"/"are"/"what" while preserving short topical tokens like "ai".
+const STOP_WORDS = new Set([
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'but',
+  'of',
+  'in',
+  'on',
+  'at',
+  'to',
+  'for',
+  'with',
+  'from',
+  'by',
+  'as',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'been',
+  'being',
+  'am',
+  'do',
+  'does',
+  'did',
+  'has',
+  'have',
+  'had',
+  'will',
+  'would',
+  'should',
+  'can',
+  'could',
+  'may',
+  'might',
+  'must',
+  'what',
+  'when',
+  'where',
+  'why',
+  'who',
+  'which',
+  'how',
+  'that',
+  'this',
+  'these',
+  'those',
+  'it',
+  'its',
+  'they',
+  'them',
+  'their',
+  'i',
+  'you',
+  'he',
+  'she',
+  'we',
+  'us',
+  'our',
+  'your',
+  'about',
+  'if',
+  'than',
+  'then',
+  'so',
+  'not',
+  'no',
+  'yes',
+  'too',
+  'very',
+  'just',
+]);
+
+function tokenize(text: string): Set<string> {
+  const matches = text.toLowerCase().match(/\b[a-z0-9]{2,}\b/g) ?? [];
+  return new Set(matches.filter((w) => !STOP_WORDS.has(w)));
+}
+
+// Returns a 0..1 score for how much of the prompt's tokens appear in the post.
+function relevance(promptTokens: Set<string>, post: RedditPost): number {
+  if (promptTokens.size === 0) return 0;
+  const postTokens = tokenize(`${post.title} ${post.selftext}`);
+  let hits = 0;
+  for (const tok of promptTokens) {
+    if (postTokens.has(tok)) hits++;
+  }
+  return hits / promptTokens.size;
+}
 
 // ---------------------------------------------------------------------------
 // Progress streaming types
@@ -64,9 +163,12 @@ export class TrackerService {
 
     const plan = this.llmService.parseJsonResponse<ScrapingPlan>(response.content);
 
+    // Normalize LLM output — strip any stray "r/" prefixes the model may include.
+    plan.subreddits = plan.subreddits.map(normalizeSubreddit).filter(Boolean);
+
     // Honour any user overrides
     if (dto.subreddits?.length) {
-      const userSubs = dto.subreddits.map((s) => s.toLowerCase());
+      const userSubs = dto.subreddits.map((s) => normalizeSubreddit(s).toLowerCase());
       const merged = [...new Set([...userSubs, ...plan.subreddits])];
       plan.subreddits = merged;
     }
@@ -110,12 +212,35 @@ export class TrackerService {
       `[Analyze] Step 1/4 — Scraping (${dto.queries.length} searches + ${dto.subreddits.length} subreddit feeds, max ${SCRAPE_CONCURRENCY} concurrent)...`,
     );
     const t1 = Date.now();
-    const { posts, searchPostIds } = await this.scrapeAll(dto, onProgress, signal);
+    const { posts, searchPostIds, failures } = await this.scrapeAll(dto, onProgress, signal);
     this.logger.log(
       `[Analyze] Step 1/4 ✓ — ${posts.length} posts collected in ${Date.now() - t1}ms`,
     );
 
     if (signal?.aborted) throw new Error('Request was cancelled');
+
+    // If scraping produced nothing, bail before wasting LLM tokens and saving a
+    // useless empty report to history. Distinguish rate-limit, total-failure,
+    // and "Reddit returned nothing" so the user gets an actionable message.
+    if (posts.length === 0) {
+      if (failures.length > 0) {
+        const had429 = failures.some((e) => e instanceof HttpException && e.getStatus() === 429);
+        if (had429) {
+          throw new HttpException(
+            'Decodo rate limit reached. Please wait a moment and try again.',
+            429,
+          );
+        }
+        throw new HttpException(
+          'Reddit scraping failed for all targets. The Decodo service may be unavailable.',
+          502,
+        );
+      }
+      throw new HttpException(
+        'No Reddit posts matched your query. Try broadening the subreddits or time range.',
+        404,
+      );
+    }
 
     // Step 2: deep-dive comment threads — prefer search results (topically relevant)
     // over subreddit hot posts (high upvotes but often off-topic)
@@ -179,12 +304,14 @@ export class TrackerService {
   ): Promise<{
     posts: RedditPost[];
     searchPostIds: Set<string>;
+    failures: Error[];
   }> {
     // Always search the verbatim prompt — LLM-generated queries may paraphrase it
     const allQueries = [...new Set([dto.prompt, ...dto.queries])];
 
     const totalTasks = allQueries.length + dto.subreddits.length;
     let completedTasks = 0;
+    const failures: Error[] = [];
 
     onProgress?.({
       type: 'started',
@@ -198,10 +325,11 @@ export class TrackerService {
         // Verbatim prompt (index 0) always searches 'year' to catch older niche content
         const timeRange = index === 0 ? 'year' : dto.timeRange;
         const result = await this.decodoService
-          .searchReddit({ query, timeRange }, signal)
+          .searchReddit({ query, timeRange, subreddits: dto.subreddits }, signal)
           .catch((err: unknown) => {
             if ((err as Error)?.name === 'AbortError') throw err;
             this.logger.warn(`Search query failed for "${query}": ${String(err)}`);
+            failures.push(err as Error);
             return [] as RedditPost[];
           });
         onProgress?.({
@@ -221,6 +349,7 @@ export class TrackerService {
           .catch((err: unknown) => {
             if ((err as Error)?.name === 'AbortError') throw err;
             this.logger.warn(`Subreddit scrape failed for r/${subreddit}: ${String(err)}`);
+            failures.push(err as Error);
             return [] as RedditPost[];
           });
         onProgress?.({
@@ -243,7 +372,7 @@ export class TrackerService {
     const searchPostIds = new Set(searchResults.map((p) => p.id).filter(Boolean));
 
     const all = [...searchResults, ...subredditResults];
-    const ranked = this.deduplicateAndRank(all, dto.prompt).slice(
+    const ranked = this.deduplicateAndRank(all, dto.prompt, dto.subreddits).slice(
       0,
       dto.maxPosts ?? MAX_POSTS_TOTAL,
     );
@@ -253,7 +382,7 @@ export class TrackerService {
         ` → dedup+rank: ${ranked.length} (top: "${ranked[0]?.title?.slice(0, 60) ?? 'none'}")`,
     );
 
-    return { posts: ranked, searchPostIds };
+    return { posts: ranked, searchPostIds, failures };
   }
 
   // Runs tasks with at most `concurrency` in-flight at a time to avoid 429s
@@ -352,7 +481,11 @@ export class TrackerService {
       .join('\n\n---\n\n');
   }
 
-  private deduplicateAndRank(posts: RedditPost[], prompt: string): RedditPost[] {
+  private deduplicateAndRank(
+    posts: RedditPost[],
+    prompt: string,
+    planSubreddits: string[] = [],
+  ): RedditPost[] {
     const seen = new Set<string>();
     const unique: RedditPost[] = [];
 
@@ -363,17 +496,26 @@ export class TrackerService {
       }
     }
 
-    const fuse = new Fuse(unique, {
-      keys: ['title', 'selftext'],
-      includeScore: true,
-      threshold: 0.6,
-      ignoreLocation: true,
-    });
+    // Filter to plan subreddits when provided. Reddit's site-wide search can
+    // bleed in unrelated communities (e.g. r/AITAH/r/cats matching "react") —
+    // dropping off-plan posts prevents viral drama from dominating. If the
+    // filter eliminates everything, fall back to the unfiltered list rather
+    // than returning nothing.
+    let filtered = unique;
+    if (planSubreddits.length > 0) {
+      const planSet = new Set(planSubreddits.map((s) => s.toLowerCase()));
+      const onPlan = unique.filter((p) => planSet.has(p.subreddit.toLowerCase()));
+      const dropped = unique.length - onPlan.length;
+      if (dropped > 0) {
+        this.logger.log(`[Rank] Dropped ${dropped} off-plan posts (kept ${onPlan.length})`);
+      }
+      filtered = onPlan.length > 0 ? onPlan : unique;
+    }
 
-    // Fuse score: 0 = perfect match, 1 = no match → invert to relevance ratio
-    const relevanceMap = new Map(fuse.search(prompt).map((r) => [r.item.id, 1 - (r.score ?? 1)]));
+    const promptTokens = tokenize(prompt);
+    const relevanceMap = new Map(filtered.map((p) => [p.id, relevance(promptTokens, p)]));
 
-    return unique.sort((a, b) => {
+    return filtered.sort((a, b) => {
       const relA = relevanceMap.get(a.id) ?? 0;
       const relB = relevanceMap.get(b.id) ?? 0;
       // Off-topic posts penalised (× 0.2), on-topic posts get full weight (× 1.0)

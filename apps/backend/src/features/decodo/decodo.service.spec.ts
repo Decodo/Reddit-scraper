@@ -3,7 +3,6 @@ import { BadRequestException, ServiceUnavailableException } from '@nestjs/common
 import { DecodoService } from './decodo.service';
 import { SettingsService } from '../settings/settings.service';
 import type { EffectiveConfig } from '../settings/settings.service';
-import type { RedditPost } from './decodo.types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,21 +26,6 @@ function makeDecodoFetch(content: unknown, status_code = 200): Response {
     ok: true,
     json: () => Promise.resolve({ results: [{ content, status_code }] }),
   } as unknown as Response;
-}
-
-function makeRedditPost(id: string, upvotes = 10, subreddit = 'test'): RedditPost {
-  return {
-    id,
-    title: `Post ${id}`,
-    subreddit,
-    author: 'user',
-    upvotes,
-    commentCount: 5,
-    url: `https://reddit.com/r/${subreddit}/comments/${id}`,
-    permalink: `/r/${subreddit}/comments/${id}`,
-    selftext: '',
-    createdAt: 1700000000,
-  };
 }
 
 function makePostListingJson(posts: Array<{ id: string; ups?: number; subreddit?: string }>) {
@@ -129,11 +113,23 @@ describe('DecodoService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('throws ServiceUnavailableException when response.ok is false (status 429)', async () => {
+    it('throws HttpException with status 429 when upstream returns 429', async () => {
       fetchSpy.mockResolvedValue({
         ok: false,
         status: 429,
         statusText: 'Too Many Requests',
+      } as unknown as Response);
+
+      await expect(
+        service.scrape({ target: 'universal', url: 'https://reddit.com' }),
+      ).rejects.toMatchObject({ status: 429 });
+    });
+
+    it('throws ServiceUnavailableException when upstream returns a non-429 error', async () => {
+      fetchSpy.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
       } as unknown as Response);
 
       await expect(
@@ -219,6 +215,56 @@ describe('DecodoService', () => {
       const posts = await service.searchReddit({ query: 'test', timeRange: 'week' });
 
       expect(posts).toEqual([]);
+    });
+
+    it('omits subreddit operator when subreddits param is empty', async () => {
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200));
+
+      await service.searchReddit({ query: 'react problems', timeRange: 'week' });
+
+      const calledUrl: string = JSON.parse(
+        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
+      ).url;
+      expect(calledUrl).not.toContain('subreddit%3A');
+    });
+
+    it('strips `r/` prefix from subreddit names before building the OR clause', async () => {
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200));
+
+      await service.searchReddit({
+        query: 'ai coding tools',
+        timeRange: 'month',
+        subreddits: ['r/programming', '/r/webdev', 'MachineLearning'],
+      });
+
+      const calledUrl: string = JSON.parse(
+        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
+      ).url;
+      const decoded = decodeURIComponent(calledUrl);
+
+      // No double r/ in the clause
+      expect(decoded).not.toContain('subreddit:r/');
+      expect(decoded).toContain('subreddit:programming');
+      expect(decoded).toContain('subreddit:webdev');
+      expect(decoded).toContain('subreddit:MachineLearning');
+    });
+
+    it('appends `subreddit:` OR clause when subreddits param is provided', async () => {
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200));
+
+      await service.searchReddit({
+        query: 'react problems',
+        timeRange: 'year',
+        subreddits: ['reactjs', 'webdev'],
+      });
+
+      const calledUrl: string = JSON.parse(
+        (fetchSpy.mock.calls[0][1] as RequestInit).body as string,
+      ).url;
+
+      const decoded = decodeURIComponent(calledUrl);
+      expect(decoded).toContain('react problems');
+      expect(decoded).toContain('(subreddit:reactjs OR subreddit:webdev)');
     });
 
     it('maps Reddit field names: ups→upvotes, num_comments→commentCount, created_utc→createdAt', async () => {
@@ -309,6 +355,16 @@ describe('DecodoService', () => {
       expect(body.target).toBe('reddit_subreddit');
       expect(body.url).toContain('/r/javascript');
       expect(body.url).toContain('sort=hot');
+    });
+
+    it('strips `r/` prefix from subreddit param so URL is not /r/r/foo', async () => {
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'r1' }]), 200));
+
+      await service.scrapeSubreddit({ subreddit: 'r/programming' });
+
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.url).toContain('/r/programming.json');
+      expect(body.url).not.toContain('/r/r/');
     });
   });
 

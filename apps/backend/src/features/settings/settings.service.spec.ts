@@ -151,13 +151,15 @@ describe('SettingsService', () => {
   // ---------------------------------------------------------------------------
 
   describe('update()', () => {
-    it('saves provider via findOneAndUpdate', async () => {
+    it('saves provider via findOneAndUpdate and resets model', async () => {
+      // Changing provider clears the model field so a stale model from a
+      // different provider isn't carried over (see settings.service.ts).
       const { service, model } = await makeService(null);
       await service.update({ provider: 'openai' });
 
       expect(model.findOneAndUpdate).toHaveBeenCalledWith(
         { key: 'global' },
-        { $set: { provider: 'openai' } },
+        { $set: { provider: 'openai', model: '' } },
         { upsert: true, new: true },
       );
     });
