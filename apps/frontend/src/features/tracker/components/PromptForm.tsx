@@ -99,7 +99,7 @@ export const PromptForm = ({ onSubmit, onCancel, isLoading }: PromptFormProps) =
           <div className="mt-3 space-y-3 rounded-md border border-border p-4">
             <div className="space-y-1.5">
               <Label htmlFor="subreddits" className="text-xs">
-                Specific subreddits (comma-separated)
+                Force specific subreddits (comma-separated)
               </Label>
               <Input
                 id="subreddits"
@@ -109,6 +109,10 @@ export const PromptForm = ({ onSubmit, onCancel, isLoading }: PromptFormProps) =
                 disabled={isLoading}
                 className="h-8 text-sm"
               />
+              <p className="text-xs text-muted-foreground">
+                These will be scraped along with any others the AI suggests. Leave blank to let the
+                AI pick based on your prompt — you'll be able to review and adjust on the next step.
+              </p>
             </div>
 
             <div className="space-y-1.5">

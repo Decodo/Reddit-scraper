@@ -78,8 +78,12 @@ export const PlanReview = ({
       )}
 
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Subreddits ({subreddits.length})</Label>
-        <div className="flex flex-wrap gap-2">
+        <Label className="text-sm font-medium">Subreddits we'll scrape ({subreddits.length})</Label>
+        <p className="text-xs text-muted-foreground">
+          The AI suggested these based on your prompt. Every subreddit listed here will be searched
+          — add or remove any before running the analysis.
+        </p>
+        <div className="flex flex-wrap gap-2 pt-1">
           {subreddits.map((sub) => (
             <Badge key={sub} variant="secondary" className="flex items-center gap-1 pr-1 text-sm">
               r/{sub}
