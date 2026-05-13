@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const W = 560;
 const H = 130;
@@ -44,8 +44,23 @@ interface GameState {
   frame: number;
 }
 
+// Only the slice of state the render reads — refs hold the full game state
+// for the animation loop, but render must read from React state to satisfy
+// the `react-hooks/refs` rule (no ref reads during render).
+type RenderSnapshot = Pick<GameState, 'status' | 'vy' | 'y' | 'obs' | 'score' | 'bgEls' | 'frame'>;
+
+const INITIAL_SNAPSHOT: RenderSnapshot = {
+  status: 'idle',
+  vy: 0,
+  y: FLOOR - CHAR_H,
+  obs: [],
+  score: 0,
+  bgEls: [],
+  frame: 0,
+};
+
 export const MiniGame = () => {
-  const [, redraw] = useReducer((n: number) => n + 1, 0);
+  const [snapshot, setSnapshot] = useState<RenderSnapshot>(INITIAL_SNAPSHOT);
   const rafRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const g = useRef<GameState>({
@@ -64,6 +79,19 @@ export const MiniGame = () => {
     nextBg: 80,
     frame: 0,
   });
+
+  const publish = useCallback(() => {
+    const s = g.current;
+    setSnapshot({
+      status: s.status,
+      vy: s.vy,
+      y: s.y,
+      obs: s.obs,
+      score: s.score,
+      bgEls: s.bgEls,
+      frame: s.frame,
+    });
+  }, []);
 
   const startLoop = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
@@ -121,18 +149,18 @@ export const MiniGame = () => {
         ) {
           s.status = 'dead';
           s.score = Math.floor(s.dist / 10);
-          redraw();
+          publish();
           return;
         }
       }
 
       s.score = Math.floor(s.dist / 10);
-      redraw();
+      publish();
       rafRef.current = requestAnimationFrame(tick);
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, []);
+  }, [publish]);
 
   const action = useCallback(() => {
     const s = g.current;
@@ -173,7 +201,7 @@ export const MiniGame = () => {
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
-  const { status, y, vy, obs, score, bgEls, frame } = g.current;
+  const { status, y, vy, obs, score, bgEls, frame } = snapshot;
   const onGround = y >= FLOOR - CHAR_H - 0.5;
 
   // squash on landing, stretch while rising

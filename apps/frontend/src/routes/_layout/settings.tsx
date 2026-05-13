@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,16 +68,19 @@ function SettingsPage() {
   const { data: status, isLoading } = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
 
+  // Mirror server status into local state so the form is editable. Using a
+  // "previous status" sentinel and setting state during render is the React-
+  // recommended pattern for syncing external data — `useEffect` here would
+  // cascade renders and trip `react-hooks/set-state-in-effect`.
   const [provider, setProvider] = useState<Provider>('claude');
   const [model, setModel] = useState('');
+  const [syncedStatus, setSyncedStatus] = useState<typeof status | null>(null);
 
-  // Sync local state once status loads
-  useEffect(() => {
-    if (status) {
-      setProvider((status.provider as Provider) || 'claude');
-      setModel(status.model || '');
-    }
-  }, [status]);
+  if (status && status !== syncedStatus) {
+    setSyncedStatus(status);
+    setProvider((status.provider as Provider) || 'claude');
+    setModel(status.model || '');
+  }
 
   const llmKeySet =
     provider === 'openai'
