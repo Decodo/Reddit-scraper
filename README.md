@@ -22,11 +22,13 @@ Built for developers, marketers, founders, and researchers, it combines [Decodo 
 
 1. **Enter a topic**. Provide a prompt or research question such as "What do developers think about AI coding tools?".
 
-2. **Review the scraping plan**. The LLM suggests relevant subreddits and search queries before scraping begins. You can review and edit the plan before running it.
+2. **Adjust analysis options**. Optionally specify subreddits, choose a time range, and control how many Reddit posts should be analyzed.
 
-3. **Generate an intelligence report**. Reddit posts and comments are scraped through the Decodo Web Scraping API, then analyzed by the LLM to produce a structured report with summaries, themes, sentiment analysis, and notable insights.
+3. **Review the scraping plan**. The LLM suggests relevant subreddits and search queries before scraping begins. You can review and edit the generated plan before running it.
 
-4. **Export the results**. Download the generated report as Markdown or JSON for further analysis, reporting, or sharing.
+4. **Generate an intelligence report**. Reddit posts and comments are scraped through the Decodo Web Scraping API, then analyzed by the LLM to produce a structured report with summaries, themes, sentiment analysis, notable quotes, and top discussions.
+
+5. **Export the results**. Download the generated report as Markdown or JSON for further analysis, reporting, or sharing.
 
 ## Example output
 
