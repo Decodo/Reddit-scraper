@@ -1,8 +1,13 @@
 # Reddit Scraper
 
+[![](https://dcbadge.vercel.app/api/server/Ja8dqKgvbZ)](https://discord.gg/Ja8dqKgvbZ)
 ![TypeScript](https://img.shields.io/badge/typescript-5.x-blue)
 ![Bun](https://img.shields.io/badge/bun-%3E%3D1.2.5-black)
 ![License](https://img.shields.io/badge/license-MIT-green)
+
+<p align="center">
+<a href="https://dashboard.decodo.com/scrapers/pricing?utm_source=github&utm_medium=social&utm_campaign=webscrapingapi"><img src="https://github.com/user-attachments/assets/13b08523-32b0-4c85-8e99-580d7c2a9055"></a>
+</p>
 
 Reddit Scraper is an open-source Reddit scraping and intelligence tool that collects subreddit posts and comments from any topic or search query, then generates AI-powered reports with sentiment analysis, key themes, notable quotes, and top post rankings.
 
@@ -299,9 +304,10 @@ The LLM generates relevant subreddits and search queries based on the user's pro
 
 ## Related repositories
 
+- [Decodo Web Scraping API](https://github.com/Decodo/Web-Scraping-API)
 - [Decodo SDK for TypeScript](https://github.com/Decodo/sdk-ts)
 - [Decodo MCP Server](https://github.com/Decodo/mcp-server)
-- More related repositories coming soon
+- [Decodo OpenClaw Skill](https://github.com/Decodo/decodo-openclaw-skill) 
 
 ## License
 
