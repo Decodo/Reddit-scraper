@@ -107,7 +107,7 @@ Built for developers, marketers, founders, and researchers, it combines [Decodo 
 
 <details>
 <summary>View example report interface</summary>
-<p align="center">
+<p align="left">
   <img
     src="./.github/images/reddit-intelligence-report.png"
     alt="Reddit intelligence report screenshot"
