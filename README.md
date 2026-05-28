@@ -30,7 +30,7 @@ Built for developers, marketers, founders, and researchers, it combines [Decodo 
 
 5. **Export the results**. Download the generated report as Markdown or JSON for further analysis, reporting, or sharing.
 
-## Example output
+## Example report
 
 <details>
 <summary>View example JSON report snippet</summary>
@@ -106,7 +106,7 @@ Built for developers, marketers, founders, and researchers, it combines [Decodo 
 </details>
 
 <details>
-<summary>View example interface</summary>
+<summary>View example report interface</summary>
 <p align="center">
   <img
     src="./.github/images/reddit-intelligence-report.png"
@@ -232,8 +232,6 @@ GEMINI_API_KEY=AIza...
 | Backend | NestJS 11, MongoDB, Mongoose |
 | Scraping | Decodo Web Scraping API |
 | LLMs | Anthropic Claude, OpenAI GPT, Google Gemini |
-
-## Project structure
 
 ## Project structure
 
