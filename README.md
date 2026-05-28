@@ -303,17 +303,6 @@ The LLM generates relevant subreddits and search queries based on the user's pro
 - [Decodo MCP Server](https://github.com/Decodo/mcp-server)
 - More related repositories coming soon
 
-## Contributing
-
-Contributions, ideas, and improvements are welcome.
-
-To contribute:
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
-
-For major changes, please open an issue first to discuss the proposed update.
-
 ## License
 
 MIT — see [LICENSE](LICENSE)
