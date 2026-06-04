@@ -25,6 +25,8 @@ Built for developers, marketers, founders, and researchers, it combines [Decodo 
 
 ## How it works
 
+<img width="702" height="352" alt="Untitled-2" src="https://github.com/user-attachments/assets/8070a7bf-23fe-4d55-be9d-1875bf284ed8" />
+
 1. **Enter a topic**. Provide a prompt or research question such as "What do developers think about AI coding tools?".
 
 2. **Adjust analysis options**. Optionally specify subreddits, choose a time range, and control how many Reddit posts should be analyzed.
