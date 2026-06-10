@@ -148,6 +148,35 @@ describe('DecodoService', () => {
       ).rejects.toThrow(ServiceUnavailableException);
     });
 
+    it('throws ServiceUnavailableException with Decodo message when status is failed', async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 'failed',
+            status_code: 613,
+            message: 'Target returned an error',
+          }),
+      } as unknown as Response);
+
+      await expect(
+        service.scrape({ target: 'universal', url: 'https://reddit.com/search.json?q=test' }),
+      ).rejects.toThrow('Decodo scrape failed: Target returned an error');
+    });
+
+    it('includes headless in request body when provided', async () => {
+      fetchSpy.mockResolvedValue(makeDecodoFetch('{"data":{"children":[]}}', 200));
+
+      await service.scrape({
+        target: 'universal',
+        url: 'https://www.reddit.com/search.json?q=test',
+        headless: 'html',
+      });
+
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.headless).toBe('html');
+    });
+
     it('returns { status, content, url, target } from results[0]', async () => {
       const content = '{"data":{"children":[]}}';
       fetchSpy.mockResolvedValue(makeDecodoFetch(content, 200));
@@ -169,6 +198,15 @@ describe('DecodoService', () => {
   // ---------------------------------------------------------------------------
 
   describe('searchReddit()', () => {
+    it('sends headless: html for Reddit JSON search URLs', async () => {
+      fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200));
+
+      await service.searchReddit({ query: 'test', timeRange: 'week' });
+
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.headless).toBe('html');
+    });
+
     it('builds URL with encoded query and correct t= timeRange param', async () => {
       fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'p1' }]), 200));
 
@@ -346,15 +384,15 @@ describe('DecodoService', () => {
       expect(posts.map((p) => p.id)).toEqual(['r1', 'r2', 'r3']);
     });
 
-    it('builds URL with subreddit hot feed, uses reddit_subreddit target', async () => {
+    it('builds hot.json URL and uses universal target with headless html', async () => {
       fetchSpy.mockResolvedValue(makeDecodoFetch(makePostListingJson([{ id: 'r1' }]), 200));
 
       await service.scrapeSubreddit({ subreddit: 'javascript' });
 
       const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
-      expect(body.target).toBe('reddit_subreddit');
-      expect(body.url).toContain('/r/javascript');
-      expect(body.url).toContain('sort=hot');
+      expect(body.target).toBe('universal');
+      expect(body.headless).toBe('html');
+      expect(body.url).toContain('/r/javascript/hot.json');
     });
 
     it('strips `r/` prefix from subreddit param so URL is not /r/r/foo', async () => {
@@ -363,8 +401,18 @@ describe('DecodoService', () => {
       await service.scrapeSubreddit({ subreddit: 'r/programming' });
 
       const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
-      expect(body.url).toContain('/r/programming.json');
+      expect(body.url).toContain('/r/programming/hot.json');
       expect(body.url).not.toContain('/r/r/');
+    });
+
+    it('throws ServiceUnavailableException when Reddit returns an HTML block page', async () => {
+      fetchSpy.mockResolvedValue(
+        makeDecodoFetch('<!DOCTYPE html><html><body>Access denied</body></html>', 200),
+      );
+
+      await expect(service.scrapeSubreddit({ subreddit: 'programming' })).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
   });
 
@@ -404,6 +452,7 @@ describe('DecodoService', () => {
 
       const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
       expect(body.target).toBe('universal');
+      expect(body.headless).toBe('html');
     });
 
     it('returns { id: postId, comments: [] } when status is 404', async () => {

@@ -56,6 +56,7 @@ export class DecodoService {
         target: request.target,
         url: request.url,
         locale: request.locale ?? 'en',
+        ...(request.headless ? { headless: request.headless } : {}),
       }),
       signal,
     });
@@ -76,6 +77,19 @@ export class DecodoService {
     const first = results?.[0];
 
     if (!first) {
+      const decodoStatus = raw['status'];
+      const decodoStatusCode = raw['status_code'];
+      const decodoMessage = raw['message'];
+
+      if (decodoStatus === 'failed') {
+        const detail =
+          typeof decodoMessage === 'string'
+            ? decodoMessage
+            : `status code ${String(decodoStatusCode ?? 'unknown')}`;
+        this.logger.warn(`[Decodo] Scrape failed: ${detail}`);
+        throw new ServiceUnavailableException(`Decodo scrape failed: ${detail}`);
+      }
+
       this.logger.warn(
         `[Decodo] Unexpected response shape (keys: ${Object.keys(raw).join(', ')}): ` +
           JSON.stringify(raw).slice(0, 300),
@@ -120,8 +134,8 @@ export class DecodoService {
     const encodedQuery = encodeURIComponent(finalQuery);
     const url = `https://www.reddit.com/search.json?q=${encodedQuery}&sort=relevance&t=${timeRange}&limit=${limit}`;
 
-    const result = await this.scrape({ target: 'universal', url }, signal);
-    return this.parsePostListing(result.content as string | object, 'universal');
+    const result = await this.scrape({ target: 'universal', url, headless: 'html' }, signal);
+    return this.parsePostListing(result.content as string | object, 'universal', result.status);
   }
 
   // ---------------------------------------------------------------------------
@@ -134,10 +148,10 @@ export class DecodoService {
   ): Promise<RedditPost[]> {
     const { limit = 25 } = params;
     const subreddit = normalizeSubreddit(params.subreddit);
-    const url = `https://www.reddit.com/r/${subreddit}.json?sort=hot&limit=${limit}`;
+    const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`;
 
-    const result = await this.scrape({ target: 'reddit_subreddit', url }, signal);
-    return this.parsePostListing(result.content as string | object, 'reddit_subreddit');
+    const result = await this.scrape({ target: 'universal', url, headless: 'html' }, signal);
+    return this.parsePostListing(result.content as string | object, 'universal', result.status);
   }
 
   // ---------------------------------------------------------------------------
@@ -154,7 +168,7 @@ export class DecodoService {
 
     // Use universal target: reddit_post returns 404 for .json URLs;
     // universal fetches the raw JSON string which our parser already handles correctly.
-    const result = await this.scrape({ target: 'universal', url }, signal);
+    const result = await this.scrape({ target: 'universal', url, headless: 'html' }, signal);
 
     if (result.status !== 200) {
       this.logger.warn(`[scrapePost] Skipping post ${postId} — status ${result.status}`);
@@ -182,13 +196,40 @@ export class DecodoService {
 
   private parseContent<T>(content: string | object): T {
     if (typeof content === 'string') {
-      return JSON.parse(content) as T;
+      const trimmed = content.trim();
+      if (this.looksLikeBlockedPage(trimmed)) {
+        throw new ServiceUnavailableException(
+          'Reddit returned a block page instead of JSON. Check your Decodo API key and quota.',
+        );
+      }
+      return JSON.parse(trimmed) as T;
     }
     return content as T;
   }
 
-  private parsePostListing(content: string | object, _target: DecodoTarget): RedditPost[] {
+  private looksLikeBlockedPage(content: string): boolean {
+    if (!content) return false;
+    const head = content.slice(0, 200).toLowerCase();
+    return (
+      head.startsWith('<!doctype') ||
+      head.startsWith('<html') ||
+      head.includes('<body') ||
+      head.includes("you've been blocked") ||
+      head.includes('access denied')
+    );
+  }
+
+  private parsePostListing(
+    content: string | object,
+    _target: DecodoTarget,
+    status = 200,
+  ): RedditPost[] {
     try {
+      if (status !== 200) {
+        this.logger.warn(`[Parser] Skipping listing — HTTP status ${status}`);
+        return [];
+      }
+
       const json = this.parseContent<{
         data?: {
           children?: Array<{ data: Record<string, unknown> }>;
@@ -199,6 +240,7 @@ export class DecodoService {
       this.logger.log(`[Parser] parsePostListing found ${children.length} children`);
       return children.map((child) => this.mapPost(child.data));
     } catch (err) {
+      if (err instanceof ServiceUnavailableException) throw err;
       this.logger.warn(`Failed to parse post listing: ${String(err)}`);
       return [];
     }

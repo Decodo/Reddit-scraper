@@ -92,6 +92,12 @@ const getApiError = (error: unknown): string | undefined =>
 const isApiKeyLikely = (msg: string | undefined): boolean =>
   !!msg && /api[_ -]?key|unauthori[sz]ed|forbidden|401|403/i.test(msg);
 
+const isModelLikely = (msg: string | undefined): boolean =>
+  !!msg && /model.*(not found|does not exist|invalid)|unknown model/i.test(msg);
+
+const isRateLimitLikely = (msg: string | undefined): boolean =>
+  !!msg && /rate limit|429|too many requests/i.test(msg);
+
 const ErrorMessage = ({ message, error }: { message: string; error?: unknown }) => {
   const apiMessage = getApiError(error);
   return (
@@ -103,6 +109,23 @@ const ErrorMessage = ({ message, error }: { message: string; error?: unknown }) 
           <Link to="/settings" className="underline underline-offset-2 font-medium">
             Check your API key settings.
           </Link>
+        </p>
+      )}
+      {isModelLikely(apiMessage) && (
+        <p>
+          <Link to="/settings" className="underline underline-offset-2 font-medium">
+            Update your LLM model in Settings
+          </Link>{' '}
+          — the default is now <code className="font-mono text-xs">claude-sonnet-4-6</code>.
+        </p>
+      )}
+      {isRateLimitLikely(apiMessage) && (
+        <p>
+          Wait a minute and retry, or{' '}
+          <Link to="/settings" className="underline underline-offset-2 font-medium">
+            switch to another LLM provider
+          </Link>{' '}
+          in Settings.
         </p>
       )}
     </div>

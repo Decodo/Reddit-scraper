@@ -32,7 +32,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
 };
 
 const PROVIDER_DEFAULT_MODELS: Record<Provider, string> = {
-  claude: 'claude-sonnet-4-20250514',
+  claude: 'claude-sonnet-4-6',
   openai: 'gpt-4o',
   gemini: 'gemini-2.5-flash',
 };

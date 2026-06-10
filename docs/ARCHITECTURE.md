@@ -51,8 +51,8 @@ External APIs:
 ### POST /tracker/analyze
 1. `TrackerController` receives confirmed plan `{ prompt, subreddits[], queries[], timeRange }`
 2. `TrackerService.analyzePlan()`:
-   a. **Parallel scraping** — global search queries via `universal` target + subreddit feeds via `reddit_subreddit` target (all concurrent)
-   b. **Dedup & rank** — merge results, remove duplicates, sort by upvotes, cap at 30
+   a. **Parallel search** — site-wide Reddit search queries via `universal` target (no subreddit hot-feed scraping)
+   b. **Dedup & rank** — keep only on-topic posts (topic terms from queries + proper nouns), sort by relevance × upvotes, cap at 30
    c. **Deep dive** — fetch full comment threads for top 8 posts via `reddit_post` target (concurrent)
    d. **LLM summarization** — send all content to LLM with `SUMMARIZATION_PROMPT`
    e. **Persist** — save full result to MongoDB via `QueriesService`
@@ -67,9 +67,9 @@ Orchestrates the full pipeline. No database access — delegates to `DecodoServi
 
 ### `decodo`
 Wraps the Decodo Scraping API. Provides three typed methods:
-- `searchReddit(params)` — `universal` target, Reddit search JSON endpoint
-- `scrapeSubreddit(params)` — `reddit_subreddit` target, subreddit hot feed
-- `scrapePost(params)` — `reddit_post` target, full comment thread
+- `searchReddit(params)` — `universal` target + `headless: html`, Reddit search JSON endpoint
+- `scrapeSubreddit(params)` — `universal` target + `headless: html`, subreddit hot feed via `/hot.json`
+- `scrapePost(params)` — `universal` target + `headless: html`, full comment thread via `.json` endpoint
 
 Parses the JSON response from Reddit's `.json` endpoints into typed `RedditPost` / `RedditPostWithComments` objects.
 

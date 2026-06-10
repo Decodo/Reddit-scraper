@@ -1,6 +1,6 @@
 export const LLM_DEFAULTS = {
   claude: {
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
   },
   openai: {
     model: 'gpt-4o',
@@ -22,7 +22,7 @@ Analyze the prompt and return a JSON object with exactly this shape:
 
 Rules:
 - subreddits: 2–5 subreddits where this specific topic is actually discussed. Use bare names WITHOUT the "r/" prefix (e.g. "lithuania", not "r/lithuania"). Prefer niche, topic-specific communities over large generic ones (e.g. for Lithuanian drama prefer "lithuania", "europe", "worldcinema" over "drama" or "television"). NEVER pick "drama" — that subreddit is for internet gossip, not theatrical/film drama.
-- queries: 2–5 search queries. The FIRST query MUST be the user's exact prompt verbatim (or with minimal rephrasing if needed for clarity). Remaining queries may explore related angles. Wrap multi-word phrases in double quotes for exact matching (e.g. "Lithuanian drama").
+- queries: 2–5 Reddit search queries. The FIRST query MUST be the core topic or product name from the prompt (e.g. "Firecrawl", "AI coding tools") — NOT the full natural-language prompt. Remaining queries may explore related angles (reviews, alternatives, complaints). Wrap product names and multi-word phrases in double quotes for exact matching.
 - timeRange: one of "day", "week", "month", "year" — pick based on the topic's recency needs. Use "year" or "month" for niche cultural topics where recent results may be sparse.
 - rationale: 1–2 sentences explaining your choices
 - Return ONLY valid JSON, no markdown, no extra text`;

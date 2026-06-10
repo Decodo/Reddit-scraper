@@ -131,7 +131,7 @@ describe('LlmService', () => {
 
         await service.complete({ ...baseRequest, provider: 'claude' });
 
-        expect(mockAnthropicMessagesCreate.mock.calls[0][0].model).toBe('claude-sonnet-4-20250514');
+        expect(mockAnthropicMessagesCreate.mock.calls[0][0].model).toBe('claude-sonnet-4-6');
       });
 
       it('throws BadRequestException when anthropicApiKey is missing', async () => {
@@ -140,6 +140,18 @@ describe('LlmService', () => {
         await expect(service.complete({ ...baseRequest, provider: 'claude' })).rejects.toThrow(
           BadRequestException,
         );
+      });
+
+      it('throws HttpException 429 when Anthropic returns rate_limit_error', async () => {
+        mockAnthropicMessagesCreate.mockRejectedValueOnce(
+          Object.assign(new Error('429 rate_limit_error'), { status: 429 }),
+        );
+
+        await expect(
+          service.complete({ ...baseRequest, provider: 'claude' }),
+        ).rejects.toMatchObject({
+          status: 429,
+        });
       });
     });
 
