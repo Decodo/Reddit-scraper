@@ -6,6 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
+import { parseDecodoV2Response } from './decodo-response';
 import type {
   DecodoScrapeRequest,
   DecodoScrapeResponse,
@@ -71,48 +72,40 @@ export class DecodoService {
       throw new ServiceUnavailableException(message);
     }
 
-    // Decodo v2 response: { results: [{ content, status_code, ... }] }
     const raw = (await response.json()) as Record<string, unknown>;
-    const results = raw['results'] as Array<{ content: string; status_code: number }> | undefined;
-    const first = results?.[0];
 
-    if (!first) {
-      const decodoStatus = raw['status'];
-      const decodoStatusCode = raw['status_code'];
-      const decodoMessage = raw['message'];
+    try {
+      const { status_code, content } = parseDecodoV2Response(raw);
 
-      if (decodoStatus === 'failed') {
-        const detail =
-          typeof decodoMessage === 'string'
-            ? decodoMessage
-            : `status code ${String(decodoStatusCode ?? 'unknown')}`;
-        this.logger.warn(`[Decodo] Scrape failed: ${detail}`);
-        throw new ServiceUnavailableException(`Decodo scrape failed: ${detail}`);
-      }
+      const contentType = typeof content;
+      const contentPreview =
+        contentType === 'string'
+          ? `${(content as string).length} chars`
+          : `[${contentType}] ${JSON.stringify(content).slice(0, 120)}`;
 
-      this.logger.warn(
-        `[Decodo] Unexpected response shape (keys: ${Object.keys(raw).join(', ')}): ` +
-          JSON.stringify(raw).slice(0, 300),
+      this.logger.log(
+        `[Decodo] ✓ ${request.target} status=${status_code} content=${contentPreview}`,
       );
-      throw new ServiceUnavailableException('Decodo API returned unexpected response structure');
+
+      return {
+        status: status_code,
+        url: request.url,
+        content,
+        target: request.target,
+      };
+    } catch (err) {
+      if (err instanceof ServiceUnavailableException) {
+        if (err.message === 'Decodo API returned unexpected response structure') {
+          this.logger.warn(
+            `[Decodo] Unexpected response shape (keys: ${Object.keys(raw).join(', ')}): ` +
+              JSON.stringify(raw).slice(0, 300),
+          );
+        } else {
+          this.logger.warn(`[Decodo] ${err.message}`);
+        }
+      }
+      throw err;
     }
-
-    const contentType = typeof first.content;
-    const contentPreview =
-      contentType === 'string'
-        ? `${(first.content as string).length} chars`
-        : `[${contentType}] ${JSON.stringify(first.content).slice(0, 120)}`;
-
-    this.logger.log(
-      `[Decodo] ✓ ${request.target} status=${first.status_code} content=${contentPreview}`,
-    );
-
-    return {
-      status: first.status_code,
-      url: request.url,
-      content: first.content as unknown,
-      target: request.target,
-    };
   }
 
   // ---------------------------------------------------------------------------

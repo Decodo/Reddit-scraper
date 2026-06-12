@@ -359,6 +359,47 @@ describe('TrackerService', () => {
       await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 404 });
     });
 
+    it('completes for nonsense product when only a generic query token matches (no false scrape failure)', async () => {
+      const nonsenseReport: RedditReport = {
+        ...mockReport,
+        executiveSummary:
+          'No meaningful Reddit presence for Zzyzxblorptron9000. Scraped posts discuss quantum physics, not this product.',
+        sentiment: { overall: 'neutral', rationale: 'No product-specific discussion found.' },
+        themes: [],
+        notableQuotes: [],
+        topPosts: [],
+      };
+      llmService.parseJsonResponse.mockReturnValue(nonsenseReport);
+
+      const nonsenseDto: AnalyzePlanDto = {
+        prompt: 'Sentiment for Zzyzxblorptron9000 quantum toaster on Reddit',
+        subreddits: ['gadgets', 'shutupandtakemymoney'],
+        queries: ['"Zzyzxblorptron9000"', 'quantum toaster', 'Zzyzxblorptron9000 review'],
+        timeRange: 'year',
+      };
+
+      const quantumViral = makePost(
+        'qviral',
+        90000,
+        'physics',
+        'Quantum entanglement breakthrough — ELI5',
+      );
+
+      decodoService.searchReddit
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([quantumViral])
+        .mockResolvedValueOnce([]);
+
+      decodoService.scrapePost.mockResolvedValue({ ...quantumViral, comments: [] });
+
+      const result = await service.analyzePlan(nonsenseDto);
+
+      expect(result.posts).toHaveLength(1);
+      expect(result.posts[0].id).toBe('qviral');
+      expect(llmService.complete).toHaveBeenCalled();
+      expect(result.report.executiveSummary).toMatch(/no meaningful reddit presence/i);
+    });
+
     it('finds product-specific posts via proper-noun topic extraction (Firecrawl)', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 

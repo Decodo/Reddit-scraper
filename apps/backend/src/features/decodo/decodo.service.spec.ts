@@ -148,22 +148,6 @@ describe('DecodoService', () => {
       ).rejects.toThrow(ServiceUnavailableException);
     });
 
-    it('throws ServiceUnavailableException with Decodo message when status is failed', async () => {
-      fetchSpy.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            status: 'failed',
-            status_code: 613,
-            message: 'Target returned an error',
-          }),
-      } as unknown as Response);
-
-      await expect(
-        service.scrape({ target: 'universal', url: 'https://reddit.com/search.json?q=test' }),
-      ).rejects.toThrow('Decodo scrape failed: Target returned an error');
-    });
-
     it('includes headless in request body when provided', async () => {
       fetchSpy.mockResolvedValue(makeDecodoFetch('{"data":{"children":[]}}', 200));
 

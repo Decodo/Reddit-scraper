@@ -49,7 +49,7 @@ Return a JSON object with exactly this shape:
 
 Rules:
 - RELEVANCE FIRST: only include posts and quotes that are directly relevant to the research prompt. Ignore off-topic posts entirely — do not summarize, quote, or list them in topPosts.
-- If the scraped content contains little or no relevant material, say so honestly in the executiveSummary. Do not pad the report with unrelated content.
+- If scraped posts do not discuss the specific product or topic from the research prompt, state clearly in the executiveSummary that it has no meaningful Reddit presence. Generic keyword overlap (e.g. "quantum" without the product name) does not count as relevant — do not present it as product sentiment.
 - themes: 3–5 distinct themes found in the relevant content only
 - notableQuotes: 3–6 direct quotes that best represent the relevant discussions
 - topPosts: up to 10 most relevant posts with accurate metadata; omit posts that are off-topic
