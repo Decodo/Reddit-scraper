@@ -1,4 +1,4 @@
-# Reddit Scraper
+# Forum Scraper
 
 [![](https://dcbadge.vercel.app/api/server/Ja8dqKgvbZ)](https://discord.gg/Ja8dqKgvbZ)
 ![TypeScript](https://img.shields.io/badge/typescript-5.x-blue)
@@ -9,13 +9,13 @@
 <a href="https://dashboard.decodo.com/scrapers/pricing?utm_source=github&utm_medium=social&utm_campaign=webscrapingapi"><img src="https://github.com/user-attachments/assets/13b08523-32b0-4c85-8e99-580d7c2a9055"></a>
 </p>
 
-Reddit Scraper is an open-source Reddit scraping and intelligence tool that collects subreddit posts and comments from any topic or search query, then generates AI-powered reports with sentiment analysis, key themes, notable quotes, and top post rankings.
+Forum Scraper is an open-source scraping and intelligence tool that collects subreddit posts and comments from any topic or search query, then generates AI-powered reports with sentiment analysis, key themes, notable quotes, and top post rankings.
 
 Built for developers, marketers, founders, and researchers, it combines [Decodo Web Scraping API](https://decodo.com/scraping/web) with LLM-based analysis to turn raw Reddit discussions into structured, actionable insights without manual browsing.
 
 ## Features
 
-- **Scrape subreddits, posts, and comments**. Collect Reddit discussions from any topic, keyword, or search query.
+- **Scrape subreddits, posts, and comments**. Collect discussions from any topic, keyword, or search query.
 - **AI-powered executive summaries**. Generate structured overviews of what Reddit users are saying.
 - **Sentiment analysis**. Understand whether discussions are positive, negative, or mixed.
 - **Key theme extraction**. Identify recurring talking points and dominant discussion patterns.
