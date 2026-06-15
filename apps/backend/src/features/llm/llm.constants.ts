@@ -1,6 +1,6 @@
 export const LLM_DEFAULTS = {
   claude: {
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
   },
   openai: {
     model: 'gpt-4o',
@@ -22,7 +22,7 @@ Analyze the prompt and return a JSON object with exactly this shape:
 
 Rules:
 - subreddits: 2–5 subreddits where this specific topic is actually discussed. Use bare names WITHOUT the "r/" prefix (e.g. "lithuania", not "r/lithuania"). Prefer niche, topic-specific communities over large generic ones (e.g. for Lithuanian drama prefer "lithuania", "europe", "worldcinema" over "drama" or "television"). NEVER pick "drama" — that subreddit is for internet gossip, not theatrical/film drama.
-- queries: 2–5 search queries. The FIRST query MUST be the user's exact prompt verbatim (or with minimal rephrasing if needed for clarity). Remaining queries may explore related angles. Wrap multi-word phrases in double quotes for exact matching (e.g. "Lithuanian drama").
+- queries: 2–5 Reddit search queries. The FIRST query MUST be the core topic or product name from the prompt (e.g. "Firecrawl", "AI coding tools") — NOT the full natural-language prompt. Remaining queries may explore related angles (reviews, alternatives, complaints). Wrap product names and multi-word phrases in double quotes for exact matching.
 - timeRange: one of "day", "week", "month", "year" — pick based on the topic's recency needs. Use "year" or "month" for niche cultural topics where recent results may be sparse.
 - rationale: 1–2 sentences explaining your choices
 - Return ONLY valid JSON, no markdown, no extra text`;
@@ -49,7 +49,7 @@ Return a JSON object with exactly this shape:
 
 Rules:
 - RELEVANCE FIRST: only include posts and quotes that are directly relevant to the research prompt. Ignore off-topic posts entirely — do not summarize, quote, or list them in topPosts.
-- If the scraped content contains little or no relevant material, say so honestly in the executiveSummary. Do not pad the report with unrelated content.
+- If scraped posts do not discuss the specific product or topic from the research prompt, state clearly in the executiveSummary that it has no meaningful Reddit presence. Generic keyword overlap (e.g. "quantum" without the product name) does not count as relevant — do not present it as product sentiment.
 - themes: 3–5 distinct themes found in the relevant content only
 - notableQuotes: 3–6 direct quotes that best represent the relevant discussions
 - topPosts: up to 10 most relevant posts with accurate metadata; omit posts that are off-topic

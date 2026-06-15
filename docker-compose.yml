@@ -7,6 +7,7 @@ services:
       - mongo-data:/data/db
     environment:
       - MONGODB_INITDB_DATABASE=platform
+      - GLIBC_TUNABLES=glibc.cpu.hwcaps=-SHSTK
 
   redis:
     image: redis:7-alpine

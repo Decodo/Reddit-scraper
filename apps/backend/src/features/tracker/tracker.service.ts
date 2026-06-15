@@ -96,20 +96,77 @@ const STOP_WORDS = new Set([
   'just',
 ]);
 
-function tokenize(text: string): Set<string> {
+const TOPIC_STOP_WORDS = new Set([
+  ...STOP_WORDS,
+  'reddit',
+  'sentiment',
+  'positive',
+  'negative',
+  'neutral',
+  'mixed',
+  'give',
+  'get',
+  'analysis',
+  'analyze',
+  'research',
+  'report',
+  'opinion',
+  'opinions',
+  'think',
+  'thinking',
+  'feel',
+  'feeling',
+  'discuss',
+  'discussion',
+  'people',
+  'users',
+  'community',
+]);
+
+function tokenize(text: string, extraStopWords: Set<string> = STOP_WORDS): Set<string> {
   const matches = text.toLowerCase().match(/\b[a-z0-9]{2,}\b/g) ?? [];
-  return new Set(matches.filter((w) => !STOP_WORDS.has(w)));
+  return new Set(matches.filter((w) => !extraStopWords.has(w)));
 }
 
-// Returns a 0..1 score for how much of the prompt's tokens appear in the post.
-function relevance(promptTokens: Set<string>, post: RedditPost): number {
-  if (promptTokens.size === 0) return 0;
+function extractTopicTokens(prompt: string, queries: string[]): Set<string> {
+  const tokens = new Set<string>();
+
+  for (const query of queries) {
+    for (const match of query.matchAll(/"([^"]+)"/g)) {
+      for (const tok of tokenize(match[1], TOPIC_STOP_WORDS)) {
+        tokens.add(tok);
+      }
+    }
+    for (const tok of tokenize(query, TOPIC_STOP_WORDS)) {
+      tokens.add(tok);
+    }
+  }
+
+  for (const match of prompt.matchAll(/"([^"]+)"/g)) {
+    for (const tok of tokenize(match[1], TOPIC_STOP_WORDS)) {
+      tokens.add(tok);
+    }
+  }
+
+  for (const match of prompt.matchAll(/\b[A-Z][a-zA-Z0-9]*(?:[A-Z][a-z]*)*\b/g)) {
+    const tok = match[0].toLowerCase();
+    if (tok.length >= 3 && !TOPIC_STOP_WORDS.has(tok)) {
+      tokens.add(tok);
+    }
+  }
+
+  return tokens;
+}
+
+// Returns a 0..1 score for how many topic tokens appear in the post.
+function relevanceToTopics(topicTokens: Set<string>, post: RedditPost): number {
+  if (topicTokens.size === 0) return 1;
   const postTokens = tokenize(`${post.title} ${post.selftext}`);
   let hits = 0;
-  for (const tok of promptTokens) {
+  for (const tok of topicTokens) {
     if (postTokens.has(tok)) hits++;
   }
-  return hits / promptTokens.size;
+  return hits / topicTokens.size;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +266,7 @@ export class TrackerService {
 
     // Step 1: parallel scraping (concurrency-capped)
     this.logger.log(
-      `[Analyze] Step 1/4 — Scraping (${dto.queries.length} searches + ${dto.subreddits.length} subreddit feeds, max ${SCRAPE_CONCURRENCY} concurrent)...`,
+      `[Analyze] Step 1/4 — Scraping ${dto.queries.length} search queries (max ${SCRAPE_CONCURRENCY} concurrent)...`,
     );
     const t1 = Date.now();
     const { posts, searchPostIds, failures } = await this.scrapeAll(dto, onProgress, signal);
@@ -237,7 +294,7 @@ export class TrackerService {
         );
       }
       throw new HttpException(
-        'No Reddit posts matched your query. Try broadening the subreddits or time range.',
+        'No Reddit posts matched your topic. Try broader search queries or a wider time range.',
         404,
       );
     }
@@ -306,10 +363,9 @@ export class TrackerService {
     searchPostIds: Set<string>;
     failures: Error[];
   }> {
-    // Always search the verbatim prompt — LLM-generated queries may paraphrase it
-    const allQueries = [...new Set([dto.prompt, ...dto.queries])];
+    const allQueries = [...new Set(dto.queries.map((q) => q.trim()).filter(Boolean))];
 
-    const totalTasks = allQueries.length + dto.subreddits.length;
+    const totalTasks = allQueries.length;
     let completedTasks = 0;
     const failures: Error[] = [];
 
@@ -317,15 +373,15 @@ export class TrackerService {
       type: 'started',
       totalTasks,
       queries: allQueries.length,
-      subreddits: dto.subreddits.length,
+      subreddits: 0,
     });
 
     const searchTasks: (() => Promise<RedditPost[]>)[] = allQueries.map(
       (query, index) => async () => {
-        // Verbatim prompt (index 0) always searches 'year' to catch older niche content
+        // First query searches 'year' to catch older niche content (e.g. product launches)
         const timeRange = index === 0 ? 'year' : dto.timeRange;
         const result = await this.decodoService
-          .searchReddit({ query, timeRange, subreddits: dto.subreddits }, signal)
+          .searchReddit({ query, timeRange }, signal)
           .catch((err: unknown) => {
             if ((err as Error)?.name === 'AbortError') throw err;
             this.logger.warn(`Search query failed for "${query}": ${String(err)}`);
@@ -342,44 +398,19 @@ export class TrackerService {
       },
     );
 
-    const subredditTasks: (() => Promise<RedditPost[]>)[] = dto.subreddits.map(
-      (subreddit) => async () => {
-        const result = await this.decodoService
-          .scrapeSubreddit({ subreddit }, signal)
-          .catch((err: unknown) => {
-            if ((err as Error)?.name === 'AbortError') throw err;
-            this.logger.warn(`Subreddit scrape failed for r/${subreddit}: ${String(err)}`);
-            failures.push(err as Error);
-            return [] as RedditPost[];
-          });
-        onProgress?.({
-          type: 'task_complete',
-          completed: ++completedTasks,
-          total: totalTasks,
-          label: `r/${subreddit}`,
-        });
-        return result;
-      },
-    );
+    const results = await TrackerService.runWithConcurrency(searchTasks, SCRAPE_CONCURRENCY);
 
-    const allTasks = [...searchTasks, ...subredditTasks];
-    const results = await TrackerService.runWithConcurrency(allTasks, SCRAPE_CONCURRENCY);
-
-    const searchResults = results.slice(0, allQueries.length).flat();
-    const subredditResults = results.slice(allQueries.length).flat();
-
-    // IDs of search-result posts — used to prioritize deep-dive selection
+    const searchResults = results.flat();
     const searchPostIds = new Set(searchResults.map((p) => p.id).filter(Boolean));
 
-    const all = [...searchResults, ...subredditResults];
-    const ranked = this.deduplicateAndRank(all, dto.prompt, dto.subreddits).slice(
+    const ranked = this.deduplicateAndRank(searchResults, dto.prompt, dto.queries).slice(
       0,
       dto.maxPosts ?? MAX_POSTS_TOTAL,
     );
 
     this.logger.log(
-      `[Scrape] Search: ${searchResults.length} | Subreddits: ${subredditResults.length}` +
-        ` → dedup+rank: ${ranked.length} (top: "${ranked[0]?.title?.slice(0, 60) ?? 'none'}")`,
+      `[Scrape] Search: ${searchResults.length} raw → ${ranked.length} on-topic` +
+        ` (top: "${ranked[0]?.title?.slice(0, 60) ?? 'none'}")`,
     );
 
     return { posts: ranked, searchPostIds, failures };
@@ -481,11 +512,7 @@ export class TrackerService {
       .join('\n\n---\n\n');
   }
 
-  private deduplicateAndRank(
-    posts: RedditPost[],
-    prompt: string,
-    planSubreddits: string[] = [],
-  ): RedditPost[] {
+  private deduplicateAndRank(posts: RedditPost[], prompt: string, queries: string[]): RedditPost[] {
     const seen = new Set<string>();
     const unique: RedditPost[] = [];
 
@@ -496,31 +523,25 @@ export class TrackerService {
       }
     }
 
-    // Filter to plan subreddits when provided. Reddit's site-wide search can
-    // bleed in unrelated communities (e.g. r/AITAH/r/cats matching "react") —
-    // dropping off-plan posts prevents viral drama from dominating. If the
-    // filter eliminates everything, fall back to the unfiltered list rather
-    // than returning nothing.
-    let filtered = unique;
-    if (planSubreddits.length > 0) {
-      const planSet = new Set(planSubreddits.map((s) => s.toLowerCase()));
-      const onPlan = unique.filter((p) => planSet.has(p.subreddit.toLowerCase()));
-      const dropped = unique.length - onPlan.length;
-      if (dropped > 0) {
-        this.logger.log(`[Rank] Dropped ${dropped} off-plan posts (kept ${onPlan.length})`);
-      }
-      filtered = onPlan.length > 0 ? onPlan : unique;
-    }
+    const topicTokens = extractTopicTokens(prompt, queries);
+    const relevanceMap = new Map(unique.map((p) => [p.id, relevanceToTopics(topicTokens, p)]));
 
-    const promptTokens = tokenize(prompt);
-    const relevanceMap = new Map(filtered.map((p) => [p.id, relevance(promptTokens, p)]));
+    // Drop posts that don't mention any topic term — prevents subreddit hot-post noise
+    // from polluting product-specific reports when search results are sparse.
+    const onTopic = unique.filter((p) => (relevanceMap.get(p.id) ?? 0) > 0);
+    const filtered = onTopic.length > 0 ? onTopic : [];
+
+    if (unique.length > 0 && filtered.length === 0) {
+      this.logger.log(
+        `[Rank] Dropped ${unique.length} off-topic posts (topic tokens: [${[...topicTokens].join(', ')}])`,
+      );
+    }
 
     return filtered.sort((a, b) => {
       const relA = relevanceMap.get(a.id) ?? 0;
       const relB = relevanceMap.get(b.id) ?? 0;
-      // Off-topic posts penalised (× 0.2), on-topic posts get full weight (× 1.0)
-      const scoreA = Math.log1p(a.upvotes) * (0.2 + 0.8 * relA);
-      const scoreB = Math.log1p(b.upvotes) * (0.2 + 0.8 * relB);
+      const scoreA = Math.log1p(a.upvotes) * relA;
+      const scoreB = Math.log1p(b.upvotes) * relB;
       return scoreB - scoreA;
     });
   }

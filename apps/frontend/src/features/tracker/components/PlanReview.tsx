@@ -78,10 +78,10 @@ export const PlanReview = ({
       )}
 
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Subreddits we'll scrape ({subreddits.length})</Label>
+        <Label className="text-sm font-medium">Suggested subreddits ({subreddits.length})</Label>
         <p className="text-xs text-muted-foreground">
-          The AI suggested these based on your prompt. Every subreddit listed here will be searched
-          — add or remove any before running the analysis.
+          Context for where discussion may live. Actual scraping uses the search queries below
+          across all of Reddit — edit queries if results look off-topic.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           {subreddits.map((sub) => (

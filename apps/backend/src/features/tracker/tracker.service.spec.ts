@@ -13,20 +13,28 @@ import type { AnalyzePlanDto } from './dto/analyze-plan.dto';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makePost(id: string, upvotes = 10, subreddit = 'test'): RedditPost {
+function makePost(
+  id: string,
+  upvotes = 10,
+  subreddit = 'test',
+  title = `Post ${id}`,
+  selftext = '',
+): RedditPost {
   return {
     id,
-    title: `Post ${id}`,
+    title,
     subreddit,
     author: 'user',
     upvotes,
     commentCount: 3,
     url: `https://reddit.com/r/${subreddit}/comments/${id}`,
     permalink: `/r/${subreddit}/comments/${id}`,
-    selftext: '',
+    selftext,
     createdAt: 1700000000,
   };
 }
+
+const onTopicTitle = 'react performance tips for production apps';
 
 const mockReport: RedditReport = {
   executiveSummary: 'Summary of findings.',
@@ -162,35 +170,23 @@ describe('TrackerService', () => {
       timeRange: 'week',
     };
 
-    it('calls searchReddit for each query and scrapeSubreddit for each subreddit', async () => {
+    it('calls searchReddit once per plan query (site-wide, no subreddit scoping)', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
-      decodoService.searchReddit.mockResolvedValue([makePost('s1')]);
-      decodoService.scrapeSubreddit.mockResolvedValue([makePost('r1')]);
+      decodoService.searchReddit.mockResolvedValue([makePost('s1', 10, 'reactjs', onTopicTitle)]);
 
       await service.analyzePlan(baseDto);
 
-      // The verbatim prompt is always prepended to the query list, so
-      // searchReddit is called once per query + once for the prompt itself.
-      expect(decodoService.searchReddit).toHaveBeenCalledTimes(2);
+      expect(decodoService.searchReddit).toHaveBeenCalledTimes(1);
       expect(decodoService.searchReddit).toHaveBeenCalledWith(
         expect.objectContaining({ query: 'react performance tips' }),
         undefined,
       );
-      expect(decodoService.scrapeSubreddit).toHaveBeenCalledTimes(2);
-      expect(decodoService.scrapeSubreddit).toHaveBeenCalledWith(
-        expect.objectContaining({ subreddit: 'reactjs' }),
-        undefined,
-      );
-      expect(decodoService.scrapeSubreddit).toHaveBeenCalledWith(
-        expect.objectContaining({ subreddit: 'webdev' }),
-        undefined,
-      );
+      expect(decodoService.scrapeSubreddit).not.toHaveBeenCalled();
     });
 
     it('returns { id, posts, report } with id from QueriesService.create', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
-      decodoService.searchReddit.mockResolvedValue([makePost('s1')]);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
+      decodoService.searchReddit.mockResolvedValue([makePost('s1', 10, 'reactjs', onTopicTitle)]);
 
       const result = await service.analyzePlan(baseDto);
 
@@ -203,9 +199,8 @@ describe('TrackerService', () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
       // Same post id returned by both search and subreddit
-      const sharedPost = makePost('shared', 50, 'reactjs');
-      decodoService.searchReddit.mockResolvedValue([sharedPost]);
-      decodoService.scrapeSubreddit.mockResolvedValue([sharedPost]);
+      const sharedPost = makePost('shared', 50, 'reactjs', onTopicTitle);
+      decodoService.searchReddit.mockResolvedValue([sharedPost, sharedPost]);
 
       decodoService.scrapePost.mockResolvedValue({ ...sharedPost, comments: [] });
 
@@ -217,65 +212,37 @@ describe('TrackerService', () => {
       expect(ids.filter((id) => id === 'shared')).toHaveLength(1);
     });
 
-    it('prefers search result posts for deep dive over higher-upvote subreddit posts', async () => {
+    it('deep-dives search result posts', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
-      const searchPost1 = makePost('s1', 10, 'reactjs');
-      const searchPost2 = makePost('s2', 20, 'reactjs');
-      // Subreddit posts have much higher upvotes but are not search results
-      const subredditPost1 = makePost('r1', 9999, 'reactjs');
-      const subredditPost2 = makePost('r2', 8888, 'reactjs');
+      const searchPost1 = makePost('s1', 10, 'reactjs', onTopicTitle);
+      const searchPost2 = makePost('s2', 20, 'reactjs', 'more react performance tips');
 
       decodoService.searchReddit.mockResolvedValue([searchPost1, searchPost2]);
-      decodoService.scrapeSubreddit.mockResolvedValue([subredditPost1, subredditPost2]);
       decodoService.scrapePost.mockResolvedValue({ ...searchPost1, comments: [] });
 
       await service.analyzePlan(baseDto);
 
       const scrapePostCalls = decodoService.scrapePost.mock.calls.map((call) => call[0].postId);
-
-      // Deep dive should use search post ids, not the high-upvote subreddit posts
       expect(scrapePostCalls).toContain('s1');
       expect(scrapePostCalls).toContain('s2');
-      expect(scrapePostCalls).not.toContain('r1');
-      expect(scrapePostCalls).not.toContain('r2');
-    });
-
-    it('falls back to all posts for deep dive when search returns no results', async () => {
-      llmService.parseJsonResponse.mockReturnValue(mockReport);
-
-      const subredditPost1 = makePost('r1', 500, 'reactjs');
-      const subredditPost2 = makePost('r2', 300, 'reactjs');
-
-      decodoService.searchReddit.mockResolvedValue([]); // no search results
-      decodoService.scrapeSubreddit
-        .mockResolvedValueOnce([subredditPost1])
-        .mockResolvedValueOnce([subredditPost2]);
-
-      decodoService.scrapePost.mockResolvedValue({ ...subredditPost1, comments: [] });
-
-      await service.analyzePlan(baseDto);
-
-      const scrapePostCalls = decodoService.scrapePost.mock.calls.map((call) => call[0].postId);
-
-      // Falls back to subreddit posts
-      expect(scrapePostCalls.length).toBeGreaterThan(0);
-      expect(scrapePostCalls.some((id) => id === 'r1' || id === 'r2')).toBe(true);
     });
 
     it('deduplicates posts and sorts remaining ones by upvotes descending', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
       const posts = [
-        makePost('p1', 100, 'reactjs'),
-        makePost('p2', 500, 'webdev'),
-        makePost('p1', 100, 'reactjs'), // duplicate
-        makePost('p3', 200, 'reactjs'),
+        makePost('p1', 100, 'reactjs', onTopicTitle),
+        makePost('p2', 500, 'webdev', 'react performance tips benchmark'),
+        makePost('p1', 100, 'reactjs', onTopicTitle), // duplicate
+        makePost('p3', 200, 'reactjs', 'react performance tips checklist'),
       ];
 
       decodoService.searchReddit.mockResolvedValue(posts);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
-      decodoService.scrapePost.mockResolvedValue({ ...makePost('p2'), comments: [] });
+      decodoService.scrapePost.mockResolvedValue({
+        ...makePost('p2', 500, 'webdev', 'react performance tips benchmark'),
+        comments: [],
+      });
 
       const result = await service.analyzePlan(baseDto);
 
@@ -289,15 +256,15 @@ describe('TrackerService', () => {
     it('caps total collected posts at MAX_POSTS_TOTAL (30)', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
-      // 20 unique search posts + 20 unique subreddit posts per sub = 60 total, capped at 30
-      const searchPosts = Array.from({ length: 20 }, (_, i) => makePost(`s${i}`, i, 'reactjs'));
-      const subredditPosts = Array.from({ length: 20 }, (_, i) =>
-        makePost(`r${i}`, i + 100, 'webdev'),
+      const searchPosts = Array.from({ length: 35 }, (_, i) =>
+        makePost(`s${i}`, i, 'reactjs', `react performance tips #${i}`),
       );
 
       decodoService.searchReddit.mockResolvedValue(searchPosts);
-      decodoService.scrapeSubreddit.mockResolvedValue(subredditPosts);
-      decodoService.scrapePost.mockResolvedValue({ ...makePost('s0'), comments: [] });
+      decodoService.scrapePost.mockResolvedValue({
+        ...makePost('s0', 0, 'reactjs', 'react performance tips #0'),
+        comments: [],
+      });
 
       const result = await service.analyzePlan(baseDto);
 
@@ -308,11 +275,15 @@ describe('TrackerService', () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
       // 12 unique search results — only 8 should get deep-dived
-      const searchPosts = Array.from({ length: 12 }, (_, i) => makePost(`s${i}`, i, 'reactjs'));
+      const searchPosts = Array.from({ length: 12 }, (_, i) =>
+        makePost(`s${i}`, i, 'reactjs', `react performance tips thread ${i}`),
+      );
 
       decodoService.searchReddit.mockResolvedValue(searchPosts);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
-      decodoService.scrapePost.mockResolvedValue({ ...makePost('s0'), comments: [] });
+      decodoService.scrapePost.mockResolvedValue({
+        ...makePost('s0', 0, 'reactjs', 'react performance tips thread 0'),
+        comments: [],
+      });
 
       await service.analyzePlan(baseDto);
 
@@ -323,15 +294,17 @@ describe('TrackerService', () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
       const postsWithEmpty = [
-        makePost('valid1', 10),
-        { ...makePost('empty', 5), id: '' },
-        makePost('valid2', 20),
-        { ...makePost('empty2', 3), id: '' },
+        makePost('valid1', 10, 'reactjs', onTopicTitle),
+        { ...makePost('empty', 5, 'reactjs', onTopicTitle), id: '' },
+        makePost('valid2', 20, 'reactjs', 'react performance tips guide'),
+        { ...makePost('empty2', 3, 'reactjs', onTopicTitle), id: '' },
       ];
 
       decodoService.searchReddit.mockResolvedValue(postsWithEmpty);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
-      decodoService.scrapePost.mockResolvedValue({ ...makePost('valid2'), comments: [] });
+      decodoService.scrapePost.mockResolvedValue({
+        ...makePost('valid2', 20, 'reactjs', 'react performance tips guide'),
+        comments: [],
+      });
 
       const result = await service.analyzePlan(baseDto);
 
@@ -341,8 +314,7 @@ describe('TrackerService', () => {
 
     it('calls QueriesService.create with { prompt, plan, posts, report }', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
-      decodoService.searchReddit.mockResolvedValue([makePost('s1')]);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
+      decodoService.searchReddit.mockResolvedValue([makePost('s1', 10, 'reactjs', onTopicTitle)]);
 
       await service.analyzePlan(baseDto);
 
@@ -360,29 +332,14 @@ describe('TrackerService', () => {
       );
     });
 
-    it('passes plan subreddits to searchReddit for `subreddit:` scoping', async () => {
-      llmService.parseJsonResponse.mockReturnValue(mockReport);
-      decodoService.searchReddit.mockResolvedValue([makePost('s1', 10, 'reactjs')]);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
-
-      await service.analyzePlan(baseDto);
-
-      expect(decodoService.searchReddit).toHaveBeenCalledWith(
-        expect.objectContaining({ subreddits: baseDto.subreddits }),
-        undefined,
-      );
-    });
-
-    it('drops off-plan posts from ranking when on-plan posts exist', async () => {
+    it('drops off-topic posts that do not mention the search topic', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
-      // Drama post has massive upvotes; would win pre-fix
-      const dramaPost = makePost('drama', 80000, 'AITAH');
-      const onPlanPost = makePost('react1', 300, 'reactjs');
+      const dramaPost = makePost('drama', 80000, 'AITAH', 'My roommate drama story');
+      const onTopicPost = makePost('react1', 300, 'reactjs', onTopicTitle);
 
-      decodoService.searchReddit.mockResolvedValue([dramaPost, onPlanPost]);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
-      decodoService.scrapePost.mockResolvedValue({ ...onPlanPost, comments: [] });
+      decodoService.searchReddit.mockResolvedValue([dramaPost, onTopicPost]);
+      decodoService.scrapePost.mockResolvedValue({ ...onTopicPost, comments: [] });
 
       const result = await service.analyzePlan(baseDto);
 
@@ -391,20 +348,82 @@ describe('TrackerService', () => {
       expect(ids).not.toContain('drama');
     });
 
-    it('falls back to off-plan posts when no on-plan posts came back', async () => {
+    it('throws 404 when search returns only off-topic posts (e.g. subreddit hot noise)', async () => {
       llmService.parseJsonResponse.mockReturnValue(mockReport);
 
-      // All posts are off-plan — fallback must keep them rather than return zero
-      const offPlan1 = makePost('o1', 100, 'cats');
-      const offPlan2 = makePost('o2', 200, 'AITAH');
+      const offTopic1 = makePost('o1', 100, 'cats', 'Cute cat photo');
+      const offTopic2 = makePost('o2', 200, 'AITAH', 'AITAH relationship drama');
 
-      decodoService.searchReddit.mockResolvedValue([offPlan1, offPlan2]);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
-      decodoService.scrapePost.mockResolvedValue({ ...offPlan1, comments: [] });
+      decodoService.searchReddit.mockResolvedValue([offTopic1, offTopic2]);
 
-      const result = await service.analyzePlan(baseDto);
+      await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 404 });
+    });
 
-      expect(result.posts.length).toBeGreaterThan(0);
+    it('completes for nonsense product when only a generic query token matches (no false scrape failure)', async () => {
+      const nonsenseReport: RedditReport = {
+        ...mockReport,
+        executiveSummary:
+          'No meaningful Reddit presence for Zzyzxblorptron9000. Scraped posts discuss quantum physics, not this product.',
+        sentiment: { overall: 'neutral', rationale: 'No product-specific discussion found.' },
+        themes: [],
+        notableQuotes: [],
+        topPosts: [],
+      };
+      llmService.parseJsonResponse.mockReturnValue(nonsenseReport);
+
+      const nonsenseDto: AnalyzePlanDto = {
+        prompt: 'Sentiment for Zzyzxblorptron9000 quantum toaster on Reddit',
+        subreddits: ['gadgets', 'shutupandtakemymoney'],
+        queries: ['"Zzyzxblorptron9000"', 'quantum toaster', 'Zzyzxblorptron9000 review'],
+        timeRange: 'year',
+      };
+
+      const quantumViral = makePost(
+        'qviral',
+        90000,
+        'physics',
+        'Quantum entanglement breakthrough — ELI5',
+      );
+
+      decodoService.searchReddit
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([quantumViral])
+        .mockResolvedValueOnce([]);
+
+      decodoService.scrapePost.mockResolvedValue({ ...quantumViral, comments: [] });
+
+      const result = await service.analyzePlan(nonsenseDto);
+
+      expect(result.posts).toHaveLength(1);
+      expect(result.posts[0].id).toBe('qviral');
+      expect(llmService.complete).toHaveBeenCalled();
+      expect(result.report.executiveSummary).toMatch(/no meaningful reddit presence/i);
+    });
+
+    it('finds product-specific posts via proper-noun topic extraction (Firecrawl)', async () => {
+      llmService.parseJsonResponse.mockReturnValue(mockReport);
+
+      const firecrawlDto: AnalyzePlanDto = {
+        prompt: 'Give me sentiment for Firecrawl on reddit (positive, negative and neutral)',
+        subreddits: ['webdev', 'SideProject'],
+        queries: ['"Firecrawl"', 'Firecrawl review', 'Firecrawl scraping'],
+        timeRange: 'year',
+      };
+
+      const onTopic = makePost('fc1', 42, 'webdev', 'Firecrawl vs alternatives for scraping');
+      const offTopic = makePost('claude1', 9000, 'programming', 'Claude AI behavior rant');
+
+      decodoService.searchReddit
+        .mockResolvedValueOnce([onTopic])
+        .mockResolvedValueOnce([onTopic, offTopic])
+        .mockResolvedValueOnce([offTopic]);
+
+      decodoService.scrapePost.mockResolvedValue({ ...onTopic, comments: [] });
+
+      const result = await service.analyzePlan(firecrawlDto);
+
+      expect(result.posts.every((p) => p.title.toLowerCase().includes('firecrawl'))).toBe(true);
+      expect(result.posts.some((p) => p.id === 'claude1')).toBe(false);
     });
 
     it('throws HttpException 429 when all scrapes hit Decodo rate limit', async () => {
@@ -412,7 +431,6 @@ describe('TrackerService', () => {
 
       const rateLimitErr = new HttpException('Decodo API error: 429 Too Many Requests', 429);
       decodoService.searchReddit.mockRejectedValue(rateLimitErr);
-      decodoService.scrapeSubreddit.mockRejectedValue(rateLimitErr);
 
       await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 429 });
       // LLM must not be called when scraping wiped out
@@ -424,7 +442,6 @@ describe('TrackerService', () => {
 
       const genericErr = new Error('Network timeout');
       decodoService.searchReddit.mockRejectedValue(genericErr);
-      decodoService.scrapeSubreddit.mockRejectedValue(genericErr);
 
       await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 502 });
     });
@@ -434,7 +451,6 @@ describe('TrackerService', () => {
 
       // No failures, but every target returned an empty list
       decodoService.searchReddit.mockResolvedValue([]);
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
 
       await expect(service.analyzePlan(baseDto)).rejects.toMatchObject({ status: 404 });
     });
@@ -445,17 +461,19 @@ describe('TrackerService', () => {
       // One query throws, others succeed
       const dtoMultiQuery: AnalyzePlanDto = {
         ...baseDto,
-        queries: ['query-ok', 'query-fail', 'query-ok-2'],
+        queries: ['react ok', 'query-fail', 'react ok 2'],
         subreddits: ['reactjs'],
       };
 
       decodoService.searchReddit
-        .mockResolvedValueOnce([makePost('ok1')])
+        .mockResolvedValueOnce([makePost('ok1', 10, 'reactjs', 'react ok thread')])
         .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce([makePost('ok2')]);
+        .mockResolvedValueOnce([makePost('ok2', 10, 'reactjs', 'react ok 2 thread')]);
 
-      decodoService.scrapeSubreddit.mockResolvedValue([]);
-      decodoService.scrapePost.mockResolvedValue({ ...makePost('ok1'), comments: [] });
+      decodoService.scrapePost.mockResolvedValue({
+        ...makePost('ok1', 10, 'reactjs', 'react ok thread'),
+        comments: [],
+      });
 
       // Should not throw
       await expect(service.analyzePlan(dtoMultiQuery)).resolves.toBeDefined();
@@ -487,16 +505,15 @@ describe('TrackerService', () => {
         });
 
       decodoService.searchReddit.mockImplementation(trackingTask);
-      decodoService.scrapeSubreddit.mockImplementation(trackingTask);
 
       const dto: AnalyzePlanDto = {
         prompt: 'Concurrency test',
         subreddits: ['sub1', 'sub2', 'sub3', 'sub4', 'sub5'],
-        queries: ['q1', 'q2', 'q3', 'q4', 'q5'],
+        queries: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10'],
         timeRange: 'week',
       };
 
-      // Total tasks = 5 queries + 5 subreddits = 10. All tasks resolve to [],
+      // 10 search queries. All resolve to [],
       // so analyzePlan throws 404 after scrapeAll — we only care about the
       // peak concurrency observed during scrapeAll, not the final outcome.
       await expect(service.analyzePlan(dto)).rejects.toThrow();

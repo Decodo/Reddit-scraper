@@ -4,6 +4,7 @@ export interface DecodoScrapeRequest {
   target: DecodoTarget;
   url: string;
   locale?: string;
+  headless?: 'html';
 }
 
 export interface DecodoScrapeResponse {
