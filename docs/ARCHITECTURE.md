@@ -2,7 +2,7 @@
 
 ## Overview
 
-Decodo Reddit Tracker is a monorepo with a React frontend, NestJS backend, and shared TypeScript package.
+Decodo Forum Scraper is a monorepo with a React frontend, NestJS backend, and shared TypeScript package.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
