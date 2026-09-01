@@ -145,8 +145,8 @@ Built for developers, marketers, founders, and researchers, it combines [Decodo 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Decodo/reddit-scraper
-cd reddit-scraper
+git clone https://github.com/Decodo/forum-scraper
+cd forum-scraper
 ```
 
 ### 2. Install dependencies
@@ -174,7 +174,7 @@ bun db:up
 
 This starts MongoDB and Redis through Docker Compose.
 
-### 5. Start the Reddit Scraper
+### 5. Start the Forum Scraper
 
 ```bash
 bun dev
