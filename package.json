@@ -1,5 +1,5 @@
 {
-  "name": "platform-boilerplate",
+  "name": "forum-scraper",
   "type": "module",
   "private": true,
   "packageManager": "bun@1.2.5",
