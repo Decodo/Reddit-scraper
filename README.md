@@ -308,6 +308,7 @@ The LLM generates relevant subreddits and search queries based on the user's pro
 
 - [Decodo Web Scraping API](https://github.com/Decodo/Web-Scraping-API)
 - [Decodo Web Scraping API documentation](https://help.decodo.com/docs/web-scraping-api-introduction)
+- [Decodo Stack Overflow Trends Monitor](https://github.com/Decodo/stackoverflow-trends-monitor)
 - [Decodo SDK for TypeScript](https://github.com/Decodo/sdk-ts)
 - [Decodo MCP Server](https://github.com/Decodo/mcp-server)
 - [Decodo OpenClaw Skill](https://github.com/Decodo/decodo-openclaw-skill) 
